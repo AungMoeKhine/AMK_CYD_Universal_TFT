@@ -119,16 +119,15 @@ lib_deps =
 `
 
 ---
-
 ## 💻 Quick Start Examples
 
 ### 1. Basic Display & Touch
 
-`cpp
+```cpp
 #include <Arduino.h>
 #include <AMK_CYD_Universal_TFT.h>
 
-// Global objects
+// Global driver objects
 AMK_CYD_display display;
 AMK_CYD_touch   touch;
 TFT_eSPI        tft;
@@ -153,12 +152,12 @@ void setup() {
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_GREEN, TFT_BLACK);
   tft.setTextDatum(MC_DATUM);
-  tft.drawString(Hello from AMK_CYD_Universal_TFT!, tft.width() / 2, 40, 1);
+  tft.drawString("Hello from AMK_CYD_Universal_TFT!", tft.width() / 2, 40, 2);
 
   char info[64];
-  snprintf(info, sizeof(info), Panel: %s (%dx%d), display.panelName(), tft.width(), tft.height());
+  snprintf(info, sizeof(info), "Panel: %s (%dx%d)", display.panelName(), tft.width(), tft.height());
   tft.setTextColor(TFT_CYAN, TFT_BLACK);
-  tft.drawString(info, tft.width() / 2, 70, 1);
+  tft.drawString(info, tft.width() / 2, 70, 2);
 }
 
 void loop() {
@@ -169,13 +168,13 @@ void loop() {
   }
   delay(5);
 }
-`
+```
 
 ---
 
 ### 2. Off-Screen Sprite Animation (Flicker-Free)
 
-`cpp
+```cpp
 #include <Arduino.h>
 #include <AMK_CYD_Universal_TFT.h>
 
@@ -204,16 +203,16 @@ void loop() {
   sprite.drawRect(0, 0, 80, 80, TFT_CYAN);
   
   float rad = angle * 0.0174533f;
-  int xTip = 40 + cos(rad) * 30;
-  int yTip = 40 + sin(rad) * 30;
-  sprite.drawLine(40, 40, xTip, yTip, TFT_YELLOW);
+  int xTip = 40 + (int)(cos(rad) * 30.0f);
+  int tipY = 40 + (int)(sin(rad) * 30.0f);
+  sprite.drawLine(40, 40, xTip, tipY, TFT_YELLOW);
 
   // Push buffer to display in one fast DMA burst
   sprite.pushSprite(120, 80);
 
   delay(20);
 }
-`
+```
 
 ---
 
