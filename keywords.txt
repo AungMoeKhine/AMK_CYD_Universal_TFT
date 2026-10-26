@@ -1,0 +1,142 @@
+﻿#######################################
+# Syntax Highlighting for AMK_CYD_Universal_TFT
+#######################################
+
+#######################################
+# Datatypes and Classes (KEYWORD1)
+#######################################
+AMK_CYD_Universal_TFT	KEYWORD1
+TFT_eSPI	KEYWORD1
+TFT_eSprite	KEYWORD1
+chipguy_CYD_resistive_display	KEYWORD1
+chipguy_CYD_resistive_touch	KEYWORD1
+AMK_CYD_display	KEYWORD1
+AMK_CYD_touch	KEYWORD1
+cydr_panel_t	KEYWORD1
+cydr_board_t	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+init	KEYWORD2
+begin	KEYWORD2
+setRotation	KEYWORD2
+getRotation	KEYWORD2
+setSwapBytes	KEYWORD2
+getSwapBytes	KEYWORD2
+setBGR	KEYWORD2
+isBGR	KEYWORD2
+setBacklight	KEYWORD2
+setBacklightPin	KEYWORD2
+backlightPin	KEYWORD2
+invertDisplay	KEYWORD2
+panel	KEYWORD2
+panelName	KEYWORD2
+board	KEYWORD2
+redLedPin	KEYWORD2
+nativeWidth	KEYWORD2
+nativeHeight	KEYWORD2
+flushRegion	KEYWORD2
+waitFlush	KEYWORD2
+fillScreen	KEYWORD2
+drawPixel	KEYWORD2
+drawRect	KEYWORD2
+fillRect	KEYWORD2
+drawCircle	KEYWORD2
+fillCircle	KEYWORD2
+drawEllipse	KEYWORD2
+fillEllipse	KEYWORD2
+drawRoundRect	KEYWORD2
+fillRoundRect	KEYWORD2
+drawLine	KEYWORD2
+drawFastVLine	KEYWORD2
+drawFastHLine	KEYWORD2
+drawTriangle	KEYWORD2
+fillTriangle	KEYWORD2
+drawWideLine	KEYWORD2
+drawWedgeLine	KEYWORD2
+setCursor	KEYWORD2
+getCursorX	KEYWORD2
+getCursorY	KEYWORD2
+setTextColor	KEYWORD2
+setTextSize	KEYWORD2
+setTextFont	KEYWORD2
+setTextDatum	KEYWORD2
+setTextWrap	KEYWORD2
+setTextPadding	KEYWORD2
+getTextPadding	KEYWORD2
+drawString	KEYWORD2
+drawCentreString	KEYWORD2
+drawRightString	KEYWORD2
+drawNumber	KEYWORD2
+drawFloat	KEYWORD2
+textWidth	KEYWORD2
+fontHeight	KEYWORD2
+color565	KEYWORD2
+color16to8	KEYWORD2
+color8to16	KEYWORD2
+getTouch	KEYWORD2
+read	KEYWORD2
+readRaw	KEYWORD2
+pressure	KEYWORD2
+mirrorsX	KEYWORD2
+mirrorsY	KEYWORD2
+setCalibration	KEYWORD2
+getCalibration	KEYWORD2
+loadCalibration	KEYWORD2
+saveCalibration	KEYWORD2
+setFilters	KEYWORD2
+getFilters	KEYWORD2
+loadFilters	KEYWORD2
+saveFilters	KEYWORD2
+createSprite	KEYWORD2
+deleteSprite	KEYWORD2
+created	KEYWORD2
+fillSprite	KEYWORD2
+pushSprite	KEYWORD2
+pushToSprite	KEYWORD2
+setColorDepth	KEYWORD2
+createPalette	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+CYDR_PANEL_AUTO	LITERAL1
+CYDR_PANEL_ILI9341	LITERAL1
+CYDR_PANEL_ST7789	LITERAL1
+CYDR_PANEL_ST7796	LITERAL1
+CYDR_BOARD_UNKNOWN	LITERAL1
+CYDR_BOARD_OWN_TOUCH	LITERAL1
+CYDR_BOARD_SHARED_TOUCH	LITERAL1
+TL_DATUM	LITERAL1
+TC_DATUM	LITERAL1
+TR_DATUM	LITERAL1
+ML_DATUM	LITERAL1
+CL_DATUM	LITERAL1
+MC_DATUM	LITERAL1
+CC_DATUM	LITERAL1
+MR_DATUM	LITERAL1
+CR_DATUM	LITERAL1
+BL_DATUM	LITERAL1
+BC_DATUM	LITERAL1
+BR_DATUM	LITERAL1
+TFT_BLACK	LITERAL1
+TFT_NAVY	LITERAL1
+TFT_DARKGREEN	LITERAL1
+TFT_DARKCYAN	LITERAL1
+TFT_MAROON	LITERAL1
+TFT_PURPLE	LITERAL1
+TFT_OLIVE	LITERAL1
+TFT_LIGHTGREY	LITERAL1
+TFT_DARKGREY	LITERAL1
+TFT_BLUE	LITERAL1
+TFT_GREEN	LITERAL1
+TFT_CYAN	LITERAL1
+TFT_RED	LITERAL1
+TFT_MAGENTA	LITERAL1
+TFT_YELLOW	LITERAL1
+TFT_WHITE	LITERAL1
+TFT_ORANGE	LITERAL1
+TFT_GREENYELLOW	LITERAL1
+TFT_PINK	LITERAL1
+TFT_TRANSPARENT	LITERAL1

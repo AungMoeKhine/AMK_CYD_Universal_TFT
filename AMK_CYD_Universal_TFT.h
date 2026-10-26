@@ -1,0 +1,6 @@
+#ifndef AMK_CYD_UNIVERSAL_TFT_ROOT_H
+#define AMK_CYD_UNIVERSAL_TFT_ROOT_H
+
+#include "src/AMK_CYD_Universal_TFT.h"
+
+#endif // AMK_CYD_UNIVERSAL_TFT_ROOT_H
