@@ -105,7 +105,7 @@ git clone https://github.com/aungmoekhine/AMK_CYD_Universal_TFT.git
 `
 
 ### Method 3: PlatformIO (platformio.ini)
-`ini
+```ini
 [env:esp32dev]
 platform = espressif32
 board = esp32dev
@@ -116,7 +116,7 @@ build_flags =
     -D CORE_DEBUG_LEVEL=0
 lib_deps = 
     https://github.com/aungmoekhine/AMK_CYD_Universal_TFT.git
-`
+```
 
 ---
 ## 💻 Quick Start Examples
