@@ -1,4 +1,4 @@
-﻿# AMK_CYD_Universal_TFT
+# AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
@@ -7,7 +7,7 @@
 
 **Universal standalone TFT, XPT2046 resistive touch, and off-screen sprite driver for the entire ESP32 Cheap Yellow Display (CYD) family.**
 
-Zero configuration required. No editing User_Setup.h, no hunting down obscure pinouts, and no recompiling for different screen variants. Works out of the box on **2.4, 2.8, 3.2, 3.5, and 4.0** CYD resistive touch boards with runtime auto-detection.
+Zero configuration required. No editing User_Setup.h, no hunting down obscure pinouts, and no recompiling for different screen variants. Works out of the box on **2.4", 2.8", 3.2", 3.5", and 4.0"** CYD resistive touch boards with runtime auto-detection.
 
 ---
 
@@ -15,13 +15,15 @@ Zero configuration required. No editing User_Setup.h, no hunting down obscure pi
 
 The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for IoT dashboards and maker projects, but getting them working with standard libraries like TFT_eSPI is notoriously frustrating:
 * CYD boards ship with **multiple display controllers** (ILI9341, ST7789, ST7796).
-* They use **different screen resolutions** ( \times 320$ vs \times 480$).
-* Backlight wiring differs across revisions (**GPIO21** vs **GPIO27**).
+* They use **different screen resolutions** (240x320 vs 320x480).
+* Backlight wiring differs across revisions (**GPIO21** on 2.8" vs **GPIO27** on 2.4", 3.2", 3.5", 4.0").
+* Color polarities differ (3.2" ST7789 requires inversion, but 2.4" ST7789 does not).
 * The **XPT2046 touch controller** is wired completely differently:
- * 2.4 & 2.8 boards wire touch to dedicated bit-bang pins.
- * 3.2, 3.5, & 4.0 boards wire touch directly to the shared HSPI display bus.
-* Onboard RGB LED red pin changes between **GPIO4** and **GPIO22**.
-* Standard TFT_eSPI requires manually modifying files inside the Arduino libraries/ directory every single time you change boards.
+  * 2.8" boards wire touch to dedicated bit-bang pins.
+  * 2.4", 3.2", 3.5", & 4.0" boards wire touch to the shared HSPI display bus.
+  * 2.4" boards have X/Y ADC channels physically swapped.
+* Onboard RGB LED pins change between revisions (**GPIO4** vs **GPIO22** for Red; **GPIO16/17** swapped on 024 and 035 models).
+* Standard TFT_eSPI requires manually modifying files inside the Arduino `libraries/` directory every single time you change boards.
 
 **AMK_CYD_Universal_TFT solves all of this automatically at runtime.**
 
@@ -32,28 +34,29 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 * 🔍 **Runtime Hardware Auto-Probing**:
   * Detects board wiring automatically via passive pull-down probing on the backlight pins.
   * Probes panel identity registers (SDO on GPIO12) at boot to identify ILI9341, ST7789, or ST7796.
-  * Adjusts geometry ( \times 320$ or  \times 480$), inversion, color order (RGB/BGR), and touch routing automatically.
+  * Detects specific board models (`display.modelName()`) and automatically configures color inversion, subpixel order, and touch axis mapping.
 * 📦 **100% Self-Contained & Drop-In Compatible**:
-  * Provides a complete, standalone TFT_eSPI class implementation.
+  * Provides a complete, standalone `TFT_eSPI` class implementation.
   * Does **not** require installing Bodmer's TFT_eSPI library.
-  * Drop-in compatible with existing TFT_eSPI drawing calls (drawString, illRoundRect, illCircle, drawTriangle, etc.).
+  * Drop-in compatible with existing TFT_eSPI drawing calls (`drawString`, `fillRoundRect`, `fillCircle`, `drawTriangle`, etc.).
 * 🎨 **Full Off-Screen Sprite Engine (TFT_eSprite)**:
   * **16-bit color** (RGB565 full depth)
   * **8-bit color** (RGB332 low memory)
-  * **4-bit color** (16-color indexed palette: run full  \times 240$ analog gauges in only ~28 KB RAM!)
+  * **4-bit color** (16-color indexed palette: run full 240x240 analog gauges in only ~28 KB RAM!)
   * Supports transparent color keying and push-to-display / push-to-sprite.
 * 👆 **Universal XPT2046 Resistive Touch Driver**:
-  * Automatically switches between dedicated bit-banging and hardware HSPI SPI bus arbitration with display DMA.
-  * Seamless 	ft.getTouch(&x, &y) and 	ouch.read(x, y) support.
-* 💾 **Persistent NVS Touch Calibration**:
-  * Built-in interactive 3-point crosshair calibration tool (TouchCalibration.ino).
-  * Saves calibration matrix and jitter/pressure filters permanently in ESP32 NVS flash (Preferences).
-  * Every sketch loads your tuned calibration on boot with 	ouch.loadCalibration().
+  * Automatically switches between dedicated bit-banging and hardware HSPI SPI bus arbitration.
+  * Handles native coordinate rotation and axis swapping transparently.
+  * Seamless `tft.getTouch(&x, &y)` and `touch.read(x, y)` support.
+* 💾 **Isolated NVS Touch Calibration**:
+  * Built-in interactive 4-corner calibration tool.
+  * Stores calibrations in distinct NVS namespaces per board model, preventing settings on one board variant from corrupting another.
+  * Every sketch loads your tuned calibration on boot with `touch.loadCalibration()`.
 * 🛡️ **Clean SPI Separation (SD Card Friendly)**:
   * Display and touch run on **SPI2 (HSPI)**.
   * Leaves **SPI3 (VSPI: GPIO 18, 19, 23, 5)** completely open for high-speed micro-SD card operations without bus conflict!
 * 🛑 **Compile-Time Failsafe Protection**:
-  * Asserts compile-time warnings if PSRAM is accidentally enabled or flash is set $> 4\text{ MB}$, preventing boot loops and GPIO16/17 pin conflicts.
+  * Asserts compile-time warnings if PSRAM is accidentally enabled or flash is set > 4 MB, preventing boot loops and GPIO16/17 pin conflicts.
 
 ---
 
@@ -61,11 +64,13 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 
 | CYD Model | Screen Size | Resolution | Controller | Touch Bus | Backlight Pin | Red LED Pin |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **ESP32-2432S028** (Micro-USB) | 2.4 / 2.8 |  \times 320$ | ILI9341 / ST7789 | Dedicated (Bit-bang) | GPIO 21 | GPIO 4 |
-| **ESP32-32E 2.8** (USB-C + Batt) | 2.8 |  \times 320$ | ILI9341 / ST7789 | Dedicated (Bit-bang) | GPIO 21 | GPIO 22 |
-| **ESP32-32E 3.2** | 3.2 |  \times 320$ | ST7789 | Shared HSPI Bus | GPIO 27 | GPIO 22 |
-| **ESP32-32E 3.5** | 3.5 |  \times 480$ | ST7796 | Shared HSPI Bus | GPIO 27 | GPIO 22 |
-| **ESP32-32E 4.0** | 4.0 |  \times 480$ | ST7796 | Shared HSPI Bus | GPIO 27 | GPIO 22 |
+| **ESP32-2432S028** (Micro-USB) | 2.8" | 240x320 | ILI9341 / ST7789 | Dedicated (Bit-bang) | GPIO 21 | GPIO 4 |
+| **ESP32-32E 2.8"** (USB-C + Batt) | 2.8" | 240x320 | ILI9341 / ST7789 | Dedicated (Bit-bang) | GPIO 21 | GPIO 22 |
+| **ESP32-024** (2.4" USB-C + Batt) | 2.4" | 240x320 | ST7789 / ILI9341 | Shared HSPI Bus (X/Y Swap) | GPIO 27 | GPIO 4 |
+| **ESP32-32E 3.2"** | 3.2" | 240x320 | ST7789 | Shared HSPI Bus | GPIO 27 | GPIO 22 |
+| **ESP32-035** (3.5" USB-C + Batt) | 3.5" | 320x480 | ST7796 | Shared HSPI Bus (X/Y Mirror) | GPIO 27 | GPIO 4 |
+| **ESP32-32E 3.5"** | 3.5" | 320x480 | ST7796 | Shared HSPI Bus | GPIO 27 | GPIO 22 |
+| **ESP32-32E 4.0"** | 4.0" | 320x480 | ST7796 | Shared HSPI Bus | GPIO 27 | GPIO 22 |
 
 ---
 
@@ -87,14 +92,14 @@ When compiling for any CYD board, use the following settings in the Arduino IDE:
 ## 📥 Installation
 
 ### Method 1: Arduino IDE (ZIP Install)
-1. Download this repository as a .ZIP file from GitHub (Code -> Download ZIP).
+1. Download this repository as a `.ZIP` file from GitHub (`Code` -> `Download ZIP`).
 2. Open **Arduino IDE**.
 3. Navigate to **Sketch** -> **Include Library** -> **Add .ZIP Library...**
-4. Select the downloaded AMK_CYD_Universal_TFT.zip.
+4. Select the downloaded `AMK_CYD_Universal_TFT.zip`.
 
 ### Method 2: Git Clone
 Clone directly into your Arduino libraries directory:
-`ash
+```bash
 # Windows (PowerShell)
 cd C:\Users\PSA\Documents\Arduino\libraries
 git clone https://github.com/aungmoekhine/AMK_CYD_Universal_TFT.git
@@ -102,9 +107,9 @@ git clone https://github.com/aungmoekhine/AMK_CYD_Universal_TFT.git
 # Linux / macOS
 cd ~/Documents/Arduino/libraries
 git clone https://github.com/aungmoekhine/AMK_CYD_Universal_TFT.git
-`
+```
 
-### Method 3: PlatformIO (platformio.ini)
+### Method 3: PlatformIO (`platformio.ini`)
 ```ini
 [env:esp32dev]
 platform = espressif32
@@ -119,6 +124,7 @@ lib_deps =
 ```
 
 ---
+
 ## 💻 Quick Start Examples
 
 ### 1. Basic Display & Touch
@@ -135,7 +141,7 @@ TFT_eSPI        tft;
 void setup() {
   Serial.begin(115200);
 
-  // 1. Initialize display (auto-detects board wiring and controller)
+  // 1. Initialize display (auto-detects board wiring, panel, and model)
   tft.init();
   tft.setRotation(1);       // 0 = Portrait, 1 = Landscape, 2 = Flip Port, 3 = Flip Land
   tft.setBacklight(100);    // 0 to 100% PWM brightness
@@ -154,8 +160,9 @@ void setup() {
   tft.setTextDatum(MC_DATUM);
   tft.drawString("Hello from AMK_CYD_Universal_TFT!", tft.width() / 2, 40, 2);
 
-  char info[64];
-  snprintf(info, sizeof(info), "Panel: %s (%dx%d)", display.panelName(), tft.width(), tft.height());
+  char info[96];
+  snprintf(info, sizeof(info), "Model: %s | Panel: %s (%dx%d)", 
+           display.modelName(), display.panelName(), tft.width(), tft.height());
   tft.setTextColor(TFT_CYAN, TFT_BLACK);
   tft.drawString(info, tft.width() / 2, 70, 2);
 }
@@ -207,7 +214,7 @@ void loop() {
   int tipY = 40 + (int)(sin(rad) * 30.0f);
   sprite.drawLine(40, 40, xTip, tipY, TFT_YELLOW);
 
-  // Push buffer to display in one fast DMA burst
+  // Push buffer to display in one fast burst
   sprite.pushSprite(120, 80);
 
   delay(20);
@@ -218,15 +225,15 @@ void loop() {
 
 ## 🎯 Touch Calibration & Noise Filters
 
-Resistive touch screens vary physically between individual manufacturing batches. This library includes a dedicated calibration app in examples/TouchCalibration/TouchCalibration.ino:
+Resistive touch screens vary physically between individual manufacturing batches. This library includes a dedicated calibration app in `examples/TouchCalibration/TouchCalibration.ino`:
 
-1. Open File -> Examples -> AMK_CYD_Universal_TFT -> TouchCalibration.
+1. Open **File** -> **Examples** -> **AMK_CYD_Universal_TFT** -> **TouchCalibration**.
 2. Upload to your CYD board.
 3. Tap each of the 4 crosshairs using a stylus or precise tap.
 4. Adjust the **Pressure** and **Jump Filter** sliders to eliminate jitter.
 5. Tap **SAVE** in the top right.
-6. The calibration is permanently written into the ESP32's **NVS Flash**.
-7. Now every sketch calling 	ouch.loadCalibration() will automatically use your tuned calibration!
+6. The calibration is permanently written into the ESP32's **NVS Flash** under that board's dedicated namespace.
+7. Now every sketch calling `touch.loadCalibration()` will automatically use your tuned calibration!
 
 ---
 
@@ -238,7 +245,7 @@ Resistive touch screens vary physically between individual manufacturing batches
 * **MISO / SDO**: GPIO 12
 * **TFT CS**: GPIO 15
 * **TFT DC**: GPIO 2
-* **Backlight**: GPIO 21 (2.4/2.8) or GPIO 27 (3.2/3.5/4.0)
+* **Backlight**: GPIO 21 (2.8" Own-Touch) or GPIO 27 (2.4", 3.2", 3.5", 4.0" Shared-Touch) — *Query via `display.backlightPin()`*
 * **Touch CS**: GPIO 33
 * **Touch IRQ**: GPIO 36
 
@@ -250,9 +257,9 @@ Resistive touch screens vary physically between individual manufacturing batches
 
 ### Onboard Peripherals
 * **RGB LED**:
- * **Red**: GPIO 4 (ESP32-2432S028) or GPIO 22 (ESP32-32E) — *Query via display.redLedPin()*
- * **Green**: GPIO 16
- * **Blue**: GPIO 17
+  * **Red**: GPIO 4 or GPIO 22 — *Query via `display.redLedPin()`*
+  * **Green**: GPIO 16 (17 on ESP32-024 / ESP32-035) — *Query via `display.greenLedPin()`*
+  * **Blue**: GPIO 17 (16 on ESP32-024 / ESP32-035) — *Query via `display.blueLedPin()`*
 * **LDR (Light Dependent Resistor)**: GPIO 34 (ADC1_CH6)
 * **Buzzer / Audio**: GPIO 26 (DAC)
 
@@ -261,19 +268,18 @@ Resistive touch screens vary physically between individual manufacturing batches
 ## ❓ Frequently Asked Questions (FAQ)
 
 ### Q: Colors look inverted (White is Black, Red is Cyan)
-Call ft.invertDisplay(true); or ft.invertDisplay(false);. While the library auto-detects standard panels, some 3rd-party replacement panels have inverted polarities.
+The library automatically handles hardware inversion via `_needsInversion()`. If using a rare non-standard replacement panel, call `tft.invertDisplay(true);` or `tft.invertDisplay(false);`.
 
 ### Q: Red and Blue colors are swapped (BGR vs RGB)
-Call ft.setBGR(true); or ft.setBGR(false); to flip the subpixel order.
+Call `tft.setBGR(true);` or `tft.setBGR(false);` to flip the subpixel order.
 
 ### Q: Touch coordinates are misaligned
-Upload and run the TouchCalibration example from this library, follow the crosshair prompts, and tap **SAVE**.
+Upload and run the `TouchCalibration` example from this library, follow the crosshair prompts, and tap **SAVE**.
 
 ### Q: Board boot loops with CORRUPT HEAP or PSRAM errors
 In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled**. CYD boards do not have external PSRAM chips.
 
 ---
-
 
 ## 👤 Author & Acknowledgments
 
