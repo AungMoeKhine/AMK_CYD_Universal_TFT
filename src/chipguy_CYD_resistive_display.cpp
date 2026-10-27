@@ -1,6 +1,6 @@
 /*
  * ILI9341 / ST7789 / ST7796 SPI display driver for the resistive-touch CYD
- * family (ESP32-2432S028; ESP32-32E 2.8", 3.2", 3.5", 4.0").
+ * family (ESP32-2432S028; ESP32-32E 2.8", 3.2", 3.5", 4.0"; ESP32-024; ESP32-035).
  * See chipguy_CYD_resistive_display.h for the wiring and usage overview.
  */
 
@@ -40,6 +40,8 @@ static cydr_board_t _cydr_activeBoard = CYDR_BOARD_UNKNOWN;
 cydr_board_t cydr_activeBoard() { return _cydr_activeBoard; }
 static cydr_panel_t _cydr_activePanel = CYDR_PANEL_AUTO;
 cydr_panel_t cydr_activePanel() { return _cydr_activePanel; }
+static cydr_model_t _cydr_activeModel = CYDR_MODEL_UNKNOWN;
+cydr_model_t cydr_activeModel() { return _cydr_activeModel; }
 
 // CS is driven by the SPI peripheral (hardware CS), but DC is a plain GPIO.
 // The driver calls this just before each transaction goes on the bus — for
@@ -134,9 +136,6 @@ static uint32_t _cydr_gpio4PulldownMillivolts() {
 
 int8_t cydr_redLedPin() {
     if (_cydr_redLed >= 0) return _cydr_redLed;
-    // The 2432S028 has the own-pins touch wiring: a shared-bus board is a 32E
-    // without asking.
-    if (_cydr_activeBoard == CYDR_BOARD_SHARED_TOUCH) return _cydr_redLed = 22;
 
     uint32_t mv = _cydr_gpio4PulldownMillivolts();
     if (mv >= 500) {
@@ -151,6 +150,17 @@ int8_t cydr_redLedPin() {
 }
 
 uint32_t cydr_redLedProbeMillivolts() { return _cydr_redLedMv; }
+
+// Green / blue: 16 / 17 everywhere but the ESP32-024 and ESP32-035 (17 / 16).
+// An unknown model is still answerable on own-touch wiring, where both
+// candidates (2432S028, 32E 2.8") use 16 / 17.
+static bool _cydr_gbKnown(bool &swapped) {
+    swapped = _cydr_activeModel == CYDR_MODEL_024 || _cydr_activeModel == CYDR_MODEL_035;
+    if (_cydr_activeModel != CYDR_MODEL_UNKNOWN) return true;
+    return _cydr_activeBoard == CYDR_BOARD_OWN_TOUCH;
+}
+int8_t cydr_greenLedPin() { bool sw; return _cydr_gbKnown(sw) ? (sw ? 17 : 16) : -1; }
+int8_t cydr_blueLedPin()  { bool sw; return _cydr_gbKnown(sw) ? (sw ? 16 : 17) : -1; }
 
 // ── Panel detection ────────────────────────────────────────────────────────
 // Runs before the SPI peripheral owns the pins, so it bit-bangs (~200 kHz,
@@ -293,6 +303,30 @@ const char *chipguy_CYD_resistive_display::panelName() const {
     }
 }
 
+const char *chipguy_CYD_resistive_display::modelName() const {
+    switch (_model) {
+        case CYDR_MODEL_2432S028:  return "ESP32-2432S028";
+        case CYDR_MODEL_32E_28:    return "ESP32-32E 2.8\"";
+        case CYDR_MODEL_32E_32:    return "ESP32-32E 3.2\"";
+        case CYDR_MODEL_32E_35_40: return "ESP32-32E 3.5\"/4.0\"";
+        case CYDR_MODEL_024:       return "ESP32-024 2.4\"";
+        case CYDR_MODEL_035:       return "ESP32-035 3.5\"";
+        default:                   return "unknown";
+    }
+}
+
+// The wiring, panel and red LED pin together name the board.  -1 (no GPIO4
+// reading) leaves the 240x320 boards unknown; a 320x480 one is taken for the
+// 32E 3.5"/4.0".
+static cydr_model_t _cydr_modelFrom(cydr_board_t board, cydr_panel_t panel, int8_t redLed) {
+    if (board == CYDR_BOARD_SHARED_TOUCH && panel == CYDR_PANEL_ST7796)
+        return redLed == 4 ? CYDR_MODEL_035 : CYDR_MODEL_32E_35_40;
+    if (redLed < 0) return CYDR_MODEL_UNKNOWN;
+    if (board == CYDR_BOARD_SHARED_TOUCH)
+        return redLed == 4 ? CYDR_MODEL_024 : CYDR_MODEL_32E_32;
+    return redLed == 4 ? CYDR_MODEL_2432S028 : CYDR_MODEL_32E_28;
+}
+
 // ── Power-on init sequences ────────────────────────────────────────────────
 // MADCTL is written here as a placeholder and then re-issued by setRotation().
 
@@ -328,9 +362,10 @@ void chipguy_CYD_resistive_display::_initILI9341() {
 }
 
 // ST7789: the power-on defaults are right for these panels, so only the pixel
-// format and display state are set.  The 2.8" panel shows correct colors with
-// inversion OFF, unlike most ST7789 IPS modules; the 3.2" (shared-touch
-// wiring) needs it ON — without INVON it shows inverse video (bench, 2026-10-13).
+// format and display state are set.  The 2.8" and 2.4" panels show correct
+// colors with inversion OFF, unlike most ST7789 IPS modules; the 3.2" needs it
+// ON — without INVON it shows inverse video (bench, 2026-10-13), and with it
+// the 2.4" does (bench, 2026-10-18).
 void chipguy_CYD_resistive_display::_initST7789() {
     _cmd(0x01);                            // Software reset
     delay(150);
@@ -338,7 +373,7 @@ void chipguy_CYD_resistive_display::_initST7789() {
     delay(120);
     _cmd(0x3A); _data8(0x55);              // Pixel format: 16-bit RGB565
     _cmd(0x36); _data8(0x00);              // MADCTL (overwritten by setRotation)
-    _cmd(_board == CYDR_BOARD_SHARED_TOUCH ? 0x21 : 0x20);   // Inversion on (3.2") / off (2.8")
+    _cmd(_needsInversion() ? 0x21 : 0x20); // Inversion on (3.2") / off (2.8", 2.4")
     _cmd(0x13);                            // Normal display mode
     _cmd(0x29);                            // Display on
     delay(20);
@@ -437,22 +472,25 @@ bool chipguy_CYD_resistive_display::begin(uint16_t rotation) {
     cydr_board_t hint = cydr_detectBoardPassive();
     if (_panel == CYDR_PANEL_AUTO) _panel = _detectPanel(hint);
     // The wiring comes from the backlight pins; only if they are
-    // inconclusive is it guessed from the panel.
-    // ST7796 is 3.5" or 4.0", which uses shared-touch with backlight on GPIO27.
-    // All 2.8" boards (ILI9341 / ST7789) use own-touch with backlight on GPIO21.
-    if (_panel == CYDR_PANEL_ILI9341 || _panel == CYDR_PANEL_ST7789) {
-        _board = CYDR_BOARD_OWN_TOUCH;
-        _blPin = CYDR_TFT_BL_OWN;
-    } else if (_panel == CYDR_PANEL_ST7796) {
-        _board = CYDR_BOARD_SHARED_TOUCH;
-        _blPin = CYDR_TFT_BL_SHARED;
-    } else {
-        _board = (hint != CYDR_BOARD_UNKNOWN) ? hint : CYDR_BOARD_OWN_TOUCH;
-        _blPin = (_board == CYDR_BOARD_SHARED_TOUCH) ? CYDR_TFT_BL_SHARED : CYDR_TFT_BL_OWN;
+    // inconclusive is it guessed from the panel.  The panel alone can't tell
+    // it: the 32E 3.2" and the ESP32-024 are ST7789 / ILI9341 boards with the
+    // shared-touch wiring and the backlight on GPIO27.
+    _board = hint;
+    if (_board == CYDR_BOARD_UNKNOWN) {
+        _board = _panel == CYDR_PANEL_ST7796 ? CYDR_BOARD_SHARED_TOUCH
+                                               : CYDR_BOARD_OWN_TOUCH;
+        Serial.printf("cydr display: backlight pins inconclusive; assuming "
+                      "backlight GPIO%d from the %s panel\n",
+                      _board == CYDR_BOARD_SHARED_TOUCH ? CYDR_TFT_BL_SHARED : CYDR_TFT_BL_OWN,
+                      panelName());
     }
+    _blPin = _board == CYDR_BOARD_SHARED_TOUCH ? CYDR_TFT_BL_SHARED : CYDR_TFT_BL_OWN;
     _cydr_activeBoard = _board;
     _cydr_activePanel = _panel;
-    cydr_redLedPin();         // latch it now, while ADC2 is still ours (before WiFi)
+    // Latch the red LED pin now, while ADC2 is still ours (before WiFi); it
+    // names the board, and the ST7789 init depends on which.
+    _model = _cydr_modelFrom(_board, _panel, cydr_redLedPin());
+    _cydr_activeModel = _model;
 
     if (_panel == CYDR_PANEL_ST7796) { _nativeW = 320; _nativeH = 480; }
     else                               { _nativeW = 240; _nativeH = 320; }
@@ -626,10 +664,15 @@ void chipguy_CYD_resistive_display::fillScreen(uint16_t color) {
 void chipguy_CYD_resistive_display::invertDisplay(bool invert) {
     if (!_spi) return;
     _waitPixelDone();
-    bool inv = invert;
-    // On 3.2" ST7789 with shared wiring, hardware inversion is active by default
-    if (_panel == CYDR_PANEL_ST7789 && _board == CYDR_BOARD_SHARED_TOUCH) {
-        inv = !invert;
-    }
+    // Panels that need INVON for correct colors (the 3.2") invert the request.
+    bool inv = _needsInversion() ? !invert : invert;
     _cmd(inv ? 0x21 : 0x20); // 0x21 = INVON, 0x20 = INVOFF
+}
+
+// Whether the panel needs INVON to show correct colors: only the 32E 3.2"'s
+// ST7789.  A shared-touch ST7789 whose model is unknown (no GPIO4 reading)
+// keeps the 3.2"'s INVON.
+bool chipguy_CYD_resistive_display::_needsInversion() const {
+    return _panel == CYDR_PANEL_ST7789 && _board == CYDR_BOARD_SHARED_TOUCH
+        && _model != CYDR_MODEL_024;
 }

@@ -691,7 +691,7 @@ public:
     void setCursor(int16_t x, int16_t y, uint8_t font) {
         _cursorX = x;
         _cursorY = y;
-        if (font > 0) _textSize = (font > 4) ? 4 : font;
+        if (font > 0) _textSize = (font > 8) ? 8 : font;
     }
     int16_t getCursorX() const { return _cursorX; }
     int16_t getCursorY() const { return _cursorY; }
@@ -699,7 +699,7 @@ public:
     void setTextColor(uint16_t fg)               { _textFg = fg; _textBg = fg; }
     void setTextColor(uint16_t fg, uint16_t bg)  { _textFg = fg; _textBg = bg; }
     void setTextSize(uint8_t s)                  { _textSize = (s > 0) ? s : 1; }
-    void setTextFont(uint8_t f)                  { if (f > 0) _textSize = (f > 4) ? 4 : f; }
+    void setTextFont(uint8_t f)                  { if (f > 0) _textSize = (f > 8) ? 8 : f; }
     void setTextDatum(uint8_t d)                 { _textDatum = d; }
     void setTextWrap(bool wrap)                  { _textWrap = wrap; }
     void setTextWrap(bool wrapX, bool wrapY)     { _textWrap = wrapX; (void)wrapY; }
@@ -709,7 +709,7 @@ public:
     int16_t drawString(const char* str, int32_t x, int32_t y, uint8_t font = 0) {
         if (!str) return 0;
         uint8_t scale = (font > 0) ? font : _textSize;
-        if (scale > 4) scale = 4;
+        if (scale > 8) scale = 8;
         int len = (int)strlen(str);
         int16_t tw = len * 6 * scale;
         int16_t th = 8 * scale;
@@ -786,7 +786,7 @@ public:
     int16_t textWidth(const char* str, uint8_t font = 0) const {
         if (!str) return 0;
         uint8_t scale = (font > 0) ? font : _textSize;
-        if (scale > 4) scale = 4;
+        if (scale > 8) scale = 8;
         return (int16_t)(strlen(str) * 6 * scale);
     }
     int16_t textWidth(const String &s, uint8_t font = 0) const {
@@ -795,7 +795,7 @@ public:
 
     int16_t fontHeight(uint8_t font = 0) const {
         uint8_t scale = (font > 0) ? font : _textSize;
-        if (scale > 4) scale = 4;
+        if (scale > 8) scale = 8;
         return (int16_t)(8 * scale);
     }
 
@@ -950,7 +950,7 @@ public:
             return 1;
         }
         uint8_t scale = _textSize;
-        if (scale > 4) scale = 4;
+        if (scale > 8) scale = 8;
         int16_t cw = 6 * scale;
         int16_t ch = 8 * scale;
         if (_textWrap && (_cursorX + cw > width())) {

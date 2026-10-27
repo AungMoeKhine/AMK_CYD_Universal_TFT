@@ -1,6 +1,6 @@
 /*
  * XPT2046 resistive touch driver for the resistive-touch CYD family
- * (ESP32-2432S028; ESP32-32E 2.8", 3.2", 3.5", 4.0").
+ * (ESP32-2432S028; ESP32-32E 2.8", 3.2", 3.5", 4.0"; ESP32-024; ESP32-035).
  *
  * The XPT2046 is wired two different ways, and begin() picks the right one for
  * the board the display driver found:
@@ -9,7 +9,7 @@
  *     the XPT2046's ~2.5 MHz limit.
  *       XPT2046_CLK 25   XPT2046_MOSI 32   XPT2046_MISO 39
  *       XPT2046_CS  33   XPT2046_IRQ  36 (active LOW while touched)
- *   - SHARED_TOUCH (32E 3.2", 3.5", 4.0"): on the DISPLAY's SPI bus (SCLK 14, MOSI 13,
+ *   - SHARED_TOUCH (32E 3.2", 3.5", 4.0", ESP32-024, ESP32-035): on the DISPLAY's SPI bus (SCLK 14, MOSI 13,
  *     MISO 12), added as a second ESP-IDF SPI device with its own chip-select
  *     and a slow clock.
  *       XPT2046_CS  33   XPT2046_IRQ  36 (active LOW while touched)
@@ -54,10 +54,16 @@ public:
     int16_t nativeWidth()  const { return _nativeW; }
     int16_t nativeHeight() const { return _nativeH; }
 
-    // Whether read() mirrors raw X / raw Y to match the panel (own-touch:
-    // X; shared-touch 240x320 (3.2"): both; 320x480: Y).  TouchCalibrate uses these to fit the calibration.
+    // Whether read() mirrors raw X / raw Y to match the panel (own-touch and
+    // ST7789 ESP32-024: X; 3.2", ILI9341 ESP32-024 and ESP32-035: both;
+    // 32E 3.5" / 4.0": Y).  TouchCalibrate uses these to fit the calibration.
     bool mirrorsX() const { return _mirrorX; }
     bool mirrorsY() const { return _mirrorY; }
+
+    // True on the ST7789 ESP32-024, whose XPT2046 X and Y channels are
+    // swapped relative to the panel.  readRaw() has already swapped them
+    // back, so calibration code needs no special case.
+    bool swapsXY() const { return _swapXY; }
 
     // Match the touch coordinate mapping to the display rotation, using the
     // same convention as chipguy_CYD_resistive_display: an index 0..3 or
@@ -132,6 +138,7 @@ private:
     int16_t  _nativeW = CYDR_TFT_NATIVE_WIDTH;
     int16_t  _nativeH = CYDR_TFT_NATIVE_HEIGHT;
     bool     _mirrorX = true, _mirrorY = false;
+    bool     _swapXY = false;
     const char *_nvsNs;
 
     uint8_t  _rotation = 0;

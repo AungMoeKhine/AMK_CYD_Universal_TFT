@@ -6,16 +6,20 @@
 //   - ESP32-32E 2.8"          2.8"  240x320  (USB-C, battery connector)
 //   - ESP32-32E 3.2"          3.2"  240x320
 //   - ESP32-32E 3.5" / 4.0"   320x480
+//   - ESP32-024               2.4"  240x320  (battery connector)
+//   - ESP32-035               3.5"  320x480  (battery connector, light sensor)
 // Two things vary independently, and begin() detects both:
 //   - The WIRING (cydr_board_t), told by which backlight pin carries a pull-down:
 //       OWN_TOUCH    (2432S028, 32E 2.8"): backlight GPIO21, XPT2046 on its own pins
-//       SHARED_TOUCH (32E 3.2", 3.5", 4.0"): backlight GPIO27, XPT2046 on this display's SPI bus
+//       SHARED_TOUCH (32E 3.2", 3.5", 4.0", ESP32-024, ESP32-035): backlight GPIO27, XPT2046 on this display's SPI bus
 //   - The PANEL (cydr_panel_t), told by its ID registers (SDO on GPIO12):
 //       ILI9341 (BGR, columns mirrored), 240x320 — 2.8"
 //       ST7789  (RGB, columns not mirrored), 240x320 — 2.8" (inversion off),
 //               3.2" (inversion on)
 //       ST7796  (BGR), 320x480 — 3.5", 4.0"
 // The panel alone decides the geometry.  See _detectPanel(); setPanel() overrides it.
+// The red LED pin (GPIO4 or 22, by GPIO4's voltage) then tells the boards
+// that share a wiring and panel apart: cydr_model_t.
 
 #include <Arduino.h>
 #include <driver/spi_master.h>
@@ -80,7 +84,7 @@ enum cydr_panel_t : uint8_t {
     CYDR_PANEL_AUTO = 0,
     CYDR_PANEL_ILI9341,      // 240x320 (2.8")
     CYDR_PANEL_ST7789,       // 240x320 (2.8", 3.2")
-    CYDR_PANEL_ST7796,       // 320x480 (3.5", 4.0")
+    CYDR_PANEL_ST7796,       // 320x480 (3.5", 4.0", ESP32-035)
 };
 
 // How the board is wired, which decides the backlight pin and the touch bus.
@@ -91,7 +95,7 @@ enum cydr_board_t : uint8_t {
     CYDR_BOARD_OWN_TOUCH,    // backlight 21, XPT2046 on its own pins:
                                //   ESP32-2432S028, ESP32-32E 2.8"
     CYDR_BOARD_SHARED_TOUCH, // backlight 27, XPT2046 on the display bus:
-                               //   ESP32-32E 3.2", 3.5", 4.0"
+                               //   ESP32-32E 3.2", 3.5", 4.0", ESP32-024, ESP32-035
 };
 
 // The board as told by the backlight pins' pull-downs, without driving
@@ -101,12 +105,27 @@ enum cydr_board_t : uint8_t {
 // driver when it is started without a display.
 cydr_board_t cydr_detectBoardPassive();
 
-// The board and panel found by the most recent display begin() (UNKNOWN / AUTO before that).
+// Which board, as told by the wiring, the panel and the red LED pin together.
+// The 3.5" and 4.0" are wired and built alike and are not told apart.
+enum cydr_model_t : uint8_t {
+    CYDR_MODEL_UNKNOWN = 0,  // red LED pin unmeasurable (WiFi held ADC2), or no begin()
+    CYDR_MODEL_2432S028,     // own touch, red LED on GPIO4
+    CYDR_MODEL_32E_28,       // own touch, amplifier enable on GPIO4
+    CYDR_MODEL_32E_32,       // shared touch, ST7789, amplifier enable on GPIO4
+    CYDR_MODEL_32E_35_40,    // shared touch, ST7796, amplifier enable on GPIO4
+                             //   (also the guess when GPIO4 couldn't be measured)
+    CYDR_MODEL_024,          // ESP32-024 2.4": shared touch, ST7789 or ILI9341, red LED on GPIO4
+    CYDR_MODEL_035,          // ESP32-035 3.5": shared touch, ST7796, red LED on GPIO4
+};
+
+// The board, panel and model found by the most recent display begin()
+// (UNKNOWN / AUTO before that).
 cydr_board_t cydr_activeBoard();
 cydr_panel_t cydr_activePanel();
+cydr_model_t cydr_activeModel();
 
-// The RGB LED's red pin (active LOW): 4 on the ESP32-2432S028, 22 on the
-// ESP32-32E 2.8" / 3.2" / 3.5" / 4.0", where GPIO4 is the speaker amplifier's
+// The RGB LED's red pin (active LOW): 4 on the ESP32-2432S028, ESP32-024 and
+// ESP32-035, 22 on the ESP32-32E 2.8" / 3.2" / 3.5" / 4.0", where GPIO4 is the speaker amplifier's
 // shutdown pin instead.  Told apart by GPIO4's voltage against the internal
 // pull-down (see README-board-detection.md).  GPIO4 is on ADC2, which WiFi
 // takes over, so the answer is measured once and latched: display.begin() does it,
@@ -116,9 +135,16 @@ cydr_panel_t cydr_activePanel();
 int8_t cydr_redLedPin();
 
 // The GPIO4 reading behind cydr_redLedPin(), in millivolts: 0 if not yet
-// measured, or on a SHARED_TOUCH board, where the answer needs no measurement.
-// For diagnostics.
+// measured.  For diagnostics.
 uint32_t cydr_redLedProbeMillivolts();
+
+// The RGB LED's green and blue pins (active LOW): 16 and 17 on every board
+// except the ESP32-024 and ESP32-035, where they are the other way round
+// (17 and 16).  Valid after display.begin(), since they follow from the model.
+// -1 before that, or when the model is unknown and the board could be either
+// a 32E 3.2" or an ESP32-024 (shared-touch 240x320 with no GPIO4 reading).
+int8_t cydr_greenLedPin();
+int8_t cydr_blueLedPin();
 
 class chipguy_CYD_resistive_display {
 public:
@@ -136,8 +162,16 @@ public:
     // The board in use, after begin().
     cydr_board_t board() const { return _board; }
 
-    // The red LED's GPIO (4 or 22, -1 if unmeasurable); see cydr_redLedPin().  Latched in begin().
-    int8_t redLedPin() const { return cydr_redLedPin(); }
+    // The board model, after begin(), and its name ("ESP32-024 2.4\"", ...).
+    cydr_model_t model() const { return _model; }
+    const char *modelName() const;
+
+    // The RGB LED's pins, all active LOW; see cydr_redLedPin() and
+    // cydr_greenLedPin().  Red is 4 or 22, green / blue 16 / 17 (17 / 16 on
+    // the ESP32-024 / -035); -1 if unknown.
+    int8_t redLedPin()   const { return cydr_redLedPin(); }
+    int8_t greenLedPin() const { return cydr_greenLedPin(); }
+    int8_t blueLedPin()  const { return cydr_blueLedPin(); }
 
     // Unrotated physical dimensions of the fitted panel (240x320 or 320x480),
     // valid after begin().
@@ -212,6 +246,7 @@ private:
     spi_device_handle_t _spi = nullptr;
     cydr_panel_t _panel = CYDR_PANEL_AUTO;
     cydr_board_t _board = CYDR_BOARD_UNKNOWN;
+    cydr_model_t _model = CYDR_MODEL_UNKNOWN;
     int16_t _nativeW = CYDR_TFT_NATIVE_WIDTH;
     int16_t _nativeH = CYDR_TFT_NATIVE_HEIGHT;
     int16_t _w = CYDR_TFT_NATIVE_WIDTH;
@@ -229,6 +264,7 @@ private:
     void _initILI9341();
     void _initST7789();
     void _initST7796();
+    bool _needsInversion() const;
     void _setAddrWindow(int x0, int y0, int x1, int y1);
     void _pushPixels(const uint8_t *data, size_t bytes);
     void _waitPixelDone();

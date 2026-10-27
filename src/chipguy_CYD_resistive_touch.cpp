@@ -14,6 +14,9 @@
 #define CYDR_TOUCH_NVS_NS_OWN        "e32e28touch"   // own-touch, 240x320 (2432S028, 32E 2.8")
 #define CYDR_TOUCH_NVS_NS_SHARED_480 "e32etouch"     // shared-touch, 320x480 (3.5", 4.0")
 #define CYDR_TOUCH_NVS_NS_SHARED_320 "e32e32touch"   // shared-touch, 240x320 (3.2")
+#define CYDR_TOUCH_NVS_NS_024        "e32024touch"   // shared-touch, 240x320, X/Y swapped (ESP32-024, ST7789)
+#define CYDR_TOUCH_NVS_NS_024_ILI    "e32024itouch"  // shared-touch, 240x320, both axes mirrored (ESP32-024, ILI9341)
+#define CYDR_TOUCH_NVS_NS_035        "e32035touch"   // shared-touch, 320x480, both axes mirrored (ESP32-035)
 #define CYDR_TOUCH_NVS_XMIN "xmin"
 #define CYDR_TOUCH_NVS_XMAX "xmax"
 #define CYDR_TOUCH_NVS_YMIN "ymin"
@@ -87,15 +90,41 @@ bool chipguy_CYD_resistive_touch::_setup(cydr_board_t board, cydr_panel_t panel)
     // XPT2046's PENIRQ drives it high when idle, low when touched.
     pinMode(CYDR_TOUCH_IRQ, INPUT);
 
+    _swapXY = false;
     if (_board == CYDR_BOARD_SHARED_TOUCH) {
-    if (panel == CYDR_PANEL_ST7796) {
-        _nativeW = 320; _nativeH = 480;
-        _mirrorX = false;   // Inverts physical px -> fixes screen Y (top/bottom)
-        _mirrorY = true;  // Keeps physical py unmirrored -> keeps screen X (left/right) correct
-        _nvsNs = CYDR_TOUCH_NVS_NS_SHARED_480;
-    } else {
+        if (panel == CYDR_PANEL_ST7796 && cydr_activeModel() == CYDR_MODEL_035) {
+            // ESP32-035: raw X runs opposite the panel's columns too, unlike
+            // the 32E 3.5"/4.0" (bench, 2026-10-23).
+            _nativeW = 320; _nativeH = 480;
+            _mirrorX = true; _mirrorY = true;
+            _nvsNs = CYDR_TOUCH_NVS_NS_035;
+        } else if (panel == CYDR_PANEL_ST7796) {
+            // 32E 3.5" / 4.0": raw Y runs opposite the ST7796's rows; raw X matches.
+            _nativeW = 320; _nativeH = 480;
+            _mirrorX = false; _mirrorY = true;
+            _nvsNs = CYDR_TOUCH_NVS_NS_SHARED_480;
+        } else if (cydr_activeModel() == CYDR_MODEL_024 && panel == CYDR_PANEL_ILI9341) {
+            // ESP32-024 with the ILI9341 panel: no swap, and both raw axes
+            // run opposite the panel's, as on the 3.2" (bench, 2026-10-23).
+            // Its own namespace, so a calibration saved under the swapped
+            // layout is never applied to this one.
+            _nativeW = 240; _nativeH = 320;
+            _mirrorX = true; _mirrorY = true;
+            _nvsNs = CYDR_TOUCH_NVS_NS_024_ILI;
+        } else if (cydr_activeModel() == CYDR_MODEL_024) {
+            // ESP32-024 (ST7789 panel): the XPT2046's X and Y run along the
+            // panel's rows and columns, so the raw pair is swapped in
+            // _readRawSample().  After the swap raw X runs opposite the
+            // panel's X and raw Y matches (bench, 2026-10-18).
+            _nativeW = 240; _nativeH = 320;
+            _swapXY = true;
+            _mirrorX = true; _mirrorY = false;
+            _nvsNs = CYDR_TOUCH_NVS_NS_024;
+        } else {
             // 3.2": 240x320 panel on the shared wiring.  Both raw axes run
-            // opposite the panel's (bench, 2026-10-13).
+            // opposite the panel's (bench, 2026-10-13).  Also the guess when
+            // the model is unknown (touch begun without a display, or no
+            // GPIO4 reading).
             _nativeW = 240; _nativeH = 320;
             _mirrorX = true; _mirrorY = true;
             _nvsNs = CYDR_TOUCH_NVS_NS_SHARED_320;
@@ -290,6 +319,7 @@ bool chipguy_CYD_resistive_touch::_readRawSample(uint16_t &rawX, uint16_t &rawY)
     if (!_spi) digitalWrite(CYDR_TOUCH_CS, HIGH);
 
     uint16_t xpos = rawX;                  // median X position for the formula
+    if (_swapXY) { rawX = rawY; rawY = xpos; }   // ESP32-024: report in panel orientation
     float p = 0.0f;
     if (z1 > 0 && xpos > 0) {
         if (z2 <= z1) {
@@ -335,21 +365,13 @@ bool chipguy_CYD_resistive_touch::read(uint16_t &x, uint16_t &y) {
     if (_mirrorX) px = W - px;
     if (_mirrorY) py = H - py;
 
-    if (_nativeH == 480) {
-        switch (_rotation) {
-            case 0:  x = W - px;      y = py;          break;  // Portrait (kept untouched)
-            case 1:  x = py;          y = px;          break;  // Landscape
-            case 2:  x = px;          y = H - py;      break;  // Portrait flipped
-            case 3:  x = H - py;      y = W - px;      break;  // Landscape flipped (FIXED X AXIS)
-        }
-    } else {
-        // Standard mapping for 2.4", 2.8", and 3.2" boards
-        switch (_rotation) {
-            case 0:  x = px;          y = py;          break;  // Portrait (kept untouched)
-            case 1:  x = py;          y = W - px;      break;  // Landscape
-            case 2:  x = W - px;      y = H - py;      break;  // Portrait flipped
-            case 3:  x = H - py;      y = px;          break;  // Landscape flipped (FIXED X AXIS)
-        }
+    // The per-board mirrors above put (px, py) in the panel's own frame, so
+    // one table serves every board.
+    switch (_rotation) {
+        case 0:  x = px;          y = py;          break;  // portrait
+        case 1:  x = py;          y = W - px;      break;  // landscape
+        case 2:  x = W - px;      y = H - py;      break;  // portrait flipped
+        case 3:  x = H - py;      y = px;          break;  // landscape flipped
     }
 
     // Jump filter: drop a reading that teleports more than _maxJump pixels from
