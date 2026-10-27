@@ -57,8 +57,8 @@ void setup() {
   tft.setTextDatum(TL_DATUM);
   tft.setTextColor(TFT_GREEN, TFT_BLACK);
 
-  char buf[64];
-  snprintf(buf, sizeof(buf), "Panel: %s (%dx%d)", display.panelName(), tft.width(), tft.height());
+  char buf[80];
+  snprintf(buf, sizeof(buf), "Model: %s | %s (%dx%d)", display.modelName(), display.panelName(), tft.width(), tft.height());
   tft.drawString(buf, 16, 40, 1);
 
   snprintf(buf, sizeof(buf), "Wiring: %s", display.board() == CYDR_BOARD_SHARED_TOUCH ? "Shared Touch (SPI)" : "Own Touch (Pins)");

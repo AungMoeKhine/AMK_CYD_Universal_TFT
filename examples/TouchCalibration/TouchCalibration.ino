@@ -17,6 +17,8 @@
 
 // Dynamic board detection based on hardware probing
 inline const char* getDetectedBoardName() {
+  const char* m = display.modelName();
+  if (m && strcmp(m, "unknown") != 0) return m;
   if (display.panel() == CYDR_PANEL_ST7796) return "CYD 3.5\" / 4.0\" (ST7796)";
   if (display.board() == CYDR_BOARD_SHARED_TOUCH) return "CYD 3.2\" (ST7789)";
   return "CYD 2.4\" / 2.8\" (ILI9341/ST7789)";
@@ -622,7 +624,7 @@ static int runOrientationSelector() {
     
     char line1[60], line2[60], line3[60];
     snprintf(line1, sizeof(line1), " Board: %s", getDetectedBoardName());
-    snprintf(line2, sizeof(line2), " Panel: %s | Res: %dx%d", panelName ? panelName : "Generic", detectedW, detectedH);
+    snprintf(line2, sizeof(line2), " Panel: %s | Res: %dx%d", panelName ? panelName : "Generic", SCRW, SCRH);
     snprintf(line3, sizeof(line3), " Touch: XPT2046 | NVS: %s", hasSavedCal ? "Saved" : "New");
 
     tft.drawString(line1, 10, 36, 1);
@@ -651,7 +653,7 @@ static int runOrientationSelector() {
     tft.fillRoundRect(btnX, 174, btnW, 36, 6, C_BTN_START);
     tft.drawRoundRect(btnX, 174, btnW, 36, 6, C_ACCENT);
     tft.setTextColor(C_TEXT, C_BTN_START);
-    tft.drawString("CONFIRM & START", SCRW / 2, 192, 1);
+    tft.drawString("CONFIRM & START (Hold BOOT)", SCRW / 2, 192, 1);
   };
 
   drawMenu(selectedRot);
@@ -687,14 +689,25 @@ static int runOrientationSelector() {
     }
 
     if (digitalRead(CAL_BOOT_PIN) == LOW) {
-      selectedRot = (selectedRot == 3) ? 0 : 3;
-      tft.setRotation(selectedRot);
-      touch.setRotation(selectedRot);
-      SCRW = tft.width(); SCRH = tft.height();
-      drawMenu(selectedRot);
-      beep(15);
-      while (digitalRead(CAL_BOOT_PIN) == LOW) delay(10);
-      waitRelease();
+      uint32_t pressStart = millis();
+      while (digitalRead(CAL_BOOT_PIN) == LOW && (millis() - pressStart < 800)) {
+        delay(10);
+      }
+      if (millis() - pressStart >= 800) {
+        beep(25);
+        while (digitalRead(CAL_BOOT_PIN) == LOW) delay(10);
+        waitRelease();
+        return selectedRot;
+      } else {
+        selectedRot = (selectedRot == 3) ? 0 : 3;
+        tft.setRotation(selectedRot);
+        touch.setRotation(selectedRot);
+        SCRW = tft.width(); SCRH = tft.height();
+        drawMenu(selectedRot);
+        beep(15);
+        while (digitalRead(CAL_BOOT_PIN) == LOW) delay(10);
+        waitRelease();
+      }
     }
     delay(10);
   }

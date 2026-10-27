@@ -1,4 +1,4 @@
-﻿/*
+/*
  * QuickStart.ino - AMK_CYD_Universal_TFT
  * Minimal, complete boilerplate template for any ESP32 CYD board.
  */
@@ -29,11 +29,11 @@ void setup() {
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_CYAN, TFT_BLACK);
   tft.setTextDatum(MC_DATUM);
-  tft.drawString(AMK_CYD_Universal_TFT, tft.width() / 2, 40, 1);
+  tft.drawString("AMK_CYD_Universal_TFT", tft.width() / 2, 40, 1);
 
   // Show detected hardware specs
-  char info[64];
-  snprintf(info, sizeof(info), Panel: %s (%dx%d), display.panelName(), tft.width(), tft.height());
+  char info[96];
+  snprintf(info, sizeof(info), "Model: %s | %s (%dx%d)", display.modelName(), display.panelName(), tft.width(), tft.height());
   tft.setTextColor(TFT_GREEN, TFT_BLACK);
   tft.drawString(info, tft.width() / 2, 70, 1);
 }
