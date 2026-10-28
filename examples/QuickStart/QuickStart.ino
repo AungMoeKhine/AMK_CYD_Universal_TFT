@@ -18,13 +18,13 @@ void setup() {
   // Optional manual overrides (if needed for custom panels):
   // tft.setPanel(CYDR_PANEL_ILI9341); // Force ILI9341 or CYDR_PANEL_ST7789 before init()
   tft.init();
-  tft.setRotation(1);       // 0 = Portrait, 1 = Landscape, 2 = Flip Port, 3 = Flip Land
+  tft.setRotation(3);       // Landscape (Rotation 3: USB left, SD card top)
   // tft.setMirrorX(true);  // Invert horizontal axis if ever mirrored
   tft.setBacklight(100);    // Backlight brightness (0 - 100%)
 
   // 3. Initialize touch controller
   touch.begin(display);
-  touch.setRotation(1);     // Match display rotation
+  touch.setRotation(3);     // Match display rotation
   touch.loadCalibration();  // Load NVS calibration if previously saved
   touch.loadFilters();
 

@@ -45,10 +45,10 @@ TFT_eSprite waveSprite  = TFT_eSprite(&tft);  // 270x110 16-bit oscilloscope wav
 #define C_TEXT_MUTED 0x94B2
 
 // ── 3. STATE & TELEMETRY ──────────────────────────────────────────────────────
-static int currentTab = 0;       // 0: METER, 1: WAVE, 2: RGB/LDR, 3: LOGO, 4: DRAW
+static int currentTab = 0;       // 0: METER, 1: WAVE, 2: RGB/LDR, 3: DRAW, 4: LOGO
 static int backlightPct = 100;   // 10 - 100%
 
-// Draw canvas state (Tab 4)
+// Draw canvas state (Tab 3)
 #define NUM_DRAW_COLORS 7
 const uint16_t DRAW_COLORS[NUM_DRAW_COLORS] = {
   C_RED_ACC,    // Red
@@ -165,7 +165,7 @@ void clearDrawCanvas();
 
 // ── 6. UI HEADER & TAB MANAGEMENT ─────────────────────────────────────────────
 #define NUM_TABS 5
-const char* TAB_NAMES[NUM_TABS] = { "METER", "WAVE", "RGB/LDR", "LOGO", "DRAW" };
+const char* TAB_NAMES[NUM_TABS] = { "METER", "WAVE", "RGB/LDR", "DRAW", "LOGO" };
 
 void drawTabBar() {
   int tabW = SCRW / NUM_TABS;
@@ -282,7 +282,11 @@ void switchTab(int newTab) {
     tft.drawRoundRect(12, diagY, SCRW - 24, diagH, 4, C_BORDER);
   }
   else if (currentTab == 3) {
-    // ── Tab 3: Logo & Specs Layout ──
+    // ── Tab 3: Draw Test Layout ──
+    initDrawTab();
+  }
+  else if (currentTab == 4) {
+    // ── Tab 4: Logo & Specs Layout ──
     int logoY = constrain(27 + (BOTY - 27 - LOGO_TFT_HEIGHT) / 2, 34, 80);
     tft.setSwapBytes(true);
     tft.pushImage(14, logoY, LOGO_TFT_WIDTH, LOGO_TFT_HEIGHT, logo_rgb565);
@@ -312,10 +316,6 @@ void switchTab(int newTab) {
     tft.drawString("Touch: XPT2046", cardX + 10, cardY + 94, 1);
     tft.drawString("SPI  : 40MHz DMA", cardX + 10, cardY + 110, 1);
     tft.drawString(String("RAM  : ") + String(ESP.getFreeHeap() / 1024) + " KB Free", cardX + 10, cardY + 126, 1);
-  }
-  else if (currentTab == 4) {
-    // ── Tab 4: Draw Test Layout ──
-    initDrawTab();
   }
 }
 
@@ -525,23 +525,24 @@ void updateBottomStatus(bool isTouched, uint16_t tx, uint16_t ty, bool force) {
   tft.setTextPadding(0);
 }
 
-// ── Draw Test Helpers (Tab 4) ─────────────────────────────────────────────────
+// ── Draw Test Helpers (Tab 3) ─────────────────────────────────────────────────
 const int COLOR_SWATCH_SIZE = 22;
 const int COLOR_SWATCH_Y    = 29;
 const int COLOR_START_X     = 8;
 const int COLOR_GAP         = 6;
 
 void drawColorSelectors() {
+  // Clear entire swatch toolbar strip to guarantee no leftover selection borders
+  tft.fillRect(COLOR_START_X - 4, COLOR_SWATCH_Y - 3, (NUM_DRAW_COLORS * (COLOR_SWATCH_SIZE + COLOR_GAP)) + 4, COLOR_SWATCH_SIZE + 6, C_DARK_BG);
+
   for (int i = 0; i < NUM_DRAW_COLORS; i++) {
     int bx = COLOR_START_X + i * (COLOR_SWATCH_SIZE + COLOR_GAP);
-    // Clear selection border background
-    tft.drawRect(bx - 2, COLOR_SWATCH_Y - 2, COLOR_SWATCH_SIZE + 4, COLOR_SWATCH_SIZE + 4, C_DARK_BG);
 
     // Color square
     tft.fillRect(bx, COLOR_SWATCH_Y, COLOR_SWATCH_SIZE, COLOR_SWATCH_SIZE, DRAW_COLORS[i]);
     tft.drawRect(bx, COLOR_SWATCH_Y, COLOR_SWATCH_SIZE, COLOR_SWATCH_SIZE, C_BORDER);
 
-    // Active indicator (double-line white frame)
+    // Active indicator (clean white selection square)
     if (i == activeDrawColorIdx) {
       tft.drawRect(bx - 2, COLOR_SWATCH_Y - 2, COLOR_SWATCH_SIZE + 4, COLOR_SWATCH_SIZE + 4, C_TEXT_WHITE);
       tft.drawRect(bx - 1, COLOR_SWATCH_Y - 1, COLOR_SWATCH_SIZE + 2, COLOR_SWATCH_SIZE + 2, C_TEXT_WHITE);
@@ -572,7 +573,7 @@ void clearDrawCanvas() {
   int canvasW = SCRW - 12;
   int canvasH = BOTY - canvasY - 4;
 
-  tft.fillRect(canvasX, canvasY, canvasW, canvasH, C_DARK_BG);
+  tft.fillRect(canvasX - 2, canvasY - 2, canvasW + 4, canvasH + 4, C_DARK_BG);
   tft.drawRoundRect(canvasX - 2, canvasY - 2, canvasW + 4, canvasH + 4, 3, C_BORDER);
   lastDrawX = -1;
   lastDrawY = -1;
@@ -592,7 +593,7 @@ void setup() {
 
   // Initialize display
   tft.init();
-  tft.setRotation(1); // Landscape
+  tft.setRotation(3); // Landscape (USB port left, SD card slot top)
   SCRW = tft.width();
   SCRH = tft.height();
   BOTY = SCRH - 18;
@@ -600,7 +601,7 @@ void setup() {
 
   // Initialize touch
   touch.begin(display);
-  touch.setRotation(1);
+  touch.setRotation(3);
   touch.loadCalibration();
   touch.loadFilters();
 
@@ -747,7 +748,7 @@ void loop() {
       updateLdrDisplay();
     }
   }
-  else if (currentTab == 4) {
+  else if (currentTab == 3) {
     int canvasX = 6;
     int canvasY = 56;
     int canvasW = SCRW - 12;
@@ -765,6 +766,8 @@ void loop() {
         clearDrawCanvas();
         delay(120);
         drawClearButton(false);
+        lastDrawX = -1;
+        lastDrawY = -1;
       }
       // 2. Check 7 Color Swatch Buttons Tap
       else if (ty >= COLOR_SWATCH_Y - 3 && ty <= COLOR_SWATCH_Y + COLOR_SWATCH_SIZE + 3) {
@@ -776,6 +779,8 @@ void loop() {
               drawColorSelectors();
               delay(100);
             }
+            lastDrawX = -1;
+            lastDrawY = -1;
             break;
           }
         }

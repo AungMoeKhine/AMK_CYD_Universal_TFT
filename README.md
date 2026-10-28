@@ -145,12 +145,12 @@ void setup() {
 
   // 1. Initialize display (auto-detects board wiring, panel, and model)
   tft.init();
-  tft.setRotation(1);       // 0 = Portrait, 1 = Landscape, 2 = Flip Port, 3 = Flip Land
+  tft.setRotation(3);       // Landscape (Rotation 3: USB left, SD card top)
   tft.setBacklight(100);    // 0 to 100% PWM brightness
 
   // 2. Initialize touch and sync rotation
   touch.begin(display);
-  touch.setRotation(1);
+  touch.setRotation(3);
 
   // 3. Load saved calibration from flash (if available)
   touch.loadCalibration();
@@ -195,7 +195,7 @@ TFT_eSprite sprite = TFT_eSprite(&tft);
 
 void setup() {
   tft.init();
-  tft.setRotation(1);
+  tft.setRotation(3); // Landscape (USB left, SD top)
   tft.fillScreen(TFT_BLACK);
 
   // Create an 80x80 16-bit RGB565 sprite in RAM
