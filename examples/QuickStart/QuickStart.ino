@@ -15,8 +15,11 @@ void setup() {
   Serial.begin(115200);
 
   // 2. Initialize display (auto-probes panel & board wiring)
+  // Optional manual overrides (if needed for custom panels):
+  // tft.setPanel(CYDR_PANEL_ILI9341); // Force ILI9341 or CYDR_PANEL_ST7789 before init()
   tft.init();
   tft.setRotation(1);       // 0 = Portrait, 1 = Landscape, 2 = Flip Port, 3 = Flip Land
+  // tft.setMirrorX(true);  // Invert horizontal axis if ever mirrored
   tft.setBacklight(100);    // Backlight brightness (0 - 100%)
 
   // 3. Initialize touch controller

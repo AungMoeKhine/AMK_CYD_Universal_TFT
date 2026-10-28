@@ -21,7 +21,7 @@ inline const char* getDetectedBoardName() {
   if (m && strcmp(m, "unknown") != 0) return m;
   if (display.panel() == CYDR_PANEL_ST7796) return "CYD 3.5\" / 4.0\" (ST7796)";
   if (display.board() == CYDR_BOARD_SHARED_TOUCH) return "CYD 3.2\" (ST7789)";
-  return "CYD 2.4\" / 2.8\" (ILI9341/ST7789)";
+  return (display.panel() == CYDR_PANEL_ILI9341) ? "CYD 2.8\" (ILI9341)" : "CYD 2.8\" (ST7789)";
 }
 
 #define BUZZER_PIN        26

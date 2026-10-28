@@ -23,10 +23,12 @@ void setup() {
   delay(200);
 
   // 1. Initialize display (auto-detects board wiring and panel controller)
+  // Optional manual override: tft.setPanel(CYDR_PANEL_ILI9341); // or CYDR_PANEL_ST7789
   tft.init();
 
   // 2. Set rotation: 0 = Portrait, 1 = Landscape, 2 = Portrait Flip, 3 = Landscape Flip
   tft.setRotation(3);
+  // Optional mirror control: tft.setMirrorX(true); // Invert horizontal axis if needed
 
   // 3. Set backlight brightness (0 to 100%). Automatically uses GPIO21 or GPIO27
   tft.setBacklight(100);
