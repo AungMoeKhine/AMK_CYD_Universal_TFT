@@ -333,6 +333,10 @@ public:
     bool getSwapBytes() const         { return _swapBytes;         }
     void setBGR(bool bgr)             { display.setBGR(bgr);       }
     bool isBGR() const                { return display.isBGR();    }
+    void setPanel(cydr_panel_t panel) { display.setPanel(panel);   }
+    cydr_panel_t getPanel() const     { return display.panel();    }
+    void setMirrorX(bool mirror)      { display.setMirrorX(mirror); }
+    bool isMirrorX() const            { return display.isMirrorX(); }
     void setBacklight(int pct)        { display.setBacklight(pct); }
     void setBacklightPin(uint8_t pin) { display.setBacklightPin(pin); }
     uint8_t backlightPin() const      { return display.backlightPin(); }

@@ -269,6 +269,12 @@ cydr_panel_t chipguy_CYD_resistive_display::_detectPanel(cydr_board_t boardHint)
 
     if (id[0][0] == 0x93 && id[0][1] == 0x41 && id[1][0] == 0x93 && id[1][1] == 0x41)
         return CYDR_PANEL_ILI9341;
+    // Direct ILI9341 detection via 0xD3 or 0x04 when 0xD9 index read is ignored
+    if (d3[0][1] == 0x93 && d3[0][2] == 0x41 && d3[1][1] == 0x93 && d3[1][2] == 0x41)
+        return CYDR_PANEL_ILI9341;
+    if (rddid[0][1] == 0x93 && rddid[0][2] == 0x41 && rddid[1][1] == 0x93 && rddid[1][2] == 0x41)
+        return CYDR_PANEL_ILI9341;
+
     if (d3[0][1] == 0x77 && d3[0][2] == 0x96 && d3[1][1] == 0x77 && d3[1][2] == 0x96)
         return CYDR_PANEL_ST7796;
     // RDDID bytes 2 and 3 (version, driver ID) under both pulls; byte 1 is the
@@ -280,8 +286,23 @@ cydr_panel_t chipguy_CYD_resistive_display::_detectPanel(cydr_board_t boardHint)
             return CYDR_PANEL_ST7789;
     }
     bool silent = id[0][0] == 0xFF && id[0][1] == 0xFF && id[1][0] == 0x00 && id[1][1] == 0x00;
-    if (silent && boardHint != CYDR_BOARD_SHARED_TOUCH)
-        return CYDR_PANEL_ST7789;      // the 2.8" ST7789 answers nothing to 0xD3
+    if (silent && boardHint != CYDR_BOARD_SHARED_TOUCH) {
+        // Own-touch wiring with silent MISO.
+        // Differentiate between 2-USB board (has ST7789 and onboard LDR on GPIO34)
+        // and single-USB Elegoo / clone board (has ILI9341, no LDR on GPIO34).
+        uint32_t ldrMv = 0;
+        for (int i = 0; i < 4; i++) {
+            ldrMv += analogReadMilliVolts(34);
+            delayMicroseconds(50);
+        }
+        ldrMv /= 4;
+        if (ldrMv >= 150 && ldrMv <= 3250) {
+            Serial.printf("cydr display: silent MISO; LDR detected on GPIO34 (%u mV) -> ST7789\n", ldrMv);
+            return CYDR_PANEL_ST7789;
+        }
+        Serial.printf("cydr display: silent MISO; no LDR on GPIO34 (%u mV) -> ILI9341\n", ldrMv);
+        return CYDR_PANEL_ILI9341;
+    }
 
     // Nothing recognised: go by the board.
     cydr_panel_t guess = boardHint == CYDR_BOARD_SHARED_TOUCH ? CYDR_PANEL_ST7796
@@ -574,6 +595,9 @@ void chipguy_CYD_resistive_display::setRotation(uint16_t rotation) {
     // uses the ILI9341 table as is.
     if (_panel == CYDR_PANEL_ST7789)
         madctl = (madctl & ~CYDR_MADCTL_BGR) ^ ILI9341_MADCTL_MX;
+
+    if (_mirrorX)
+        madctl ^= ILI9341_MADCTL_MX;
 
     _cmd(0x36);          // MADCTL
     _data8(madctl);

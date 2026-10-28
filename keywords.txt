@@ -1,4 +1,4 @@
-﻿#######################################
+#######################################
 # Syntax Highlighting for AMK_CYD_Universal_TFT
 #######################################
 
@@ -26,6 +26,10 @@ setSwapBytes	KEYWORD2
 getSwapBytes	KEYWORD2
 setBGR	KEYWORD2
 isBGR	KEYWORD2
+setMirrorX	KEYWORD2
+isMirrorX	KEYWORD2
+setPanel	KEYWORD2
+getPanel	KEYWORD2
 setBacklight	KEYWORD2
 setBacklightPin	KEYWORD2
 backlightPin	KEYWORD2

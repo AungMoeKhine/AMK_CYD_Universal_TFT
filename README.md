@@ -34,6 +34,7 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 * 🔍 **Runtime Hardware Auto-Probing**:
   * Detects board wiring automatically via passive pull-down probing on the backlight pins.
   * Probes panel identity registers (SDO on GPIO12) at boot to identify ILI9341, ST7789, or ST7796.
+  * **Smart 2.8" Silent-MISO Detection**: Probes the onboard LDR (GPIO 34) to cleanly differentiate between Dual-USB ST7789 boards and ELEGOO ILI9341 boards without requiring manual config files.
   * Detects specific board models (`display.modelName()`) and automatically configures color inversion, subpixel order, and touch axis mapping.
 * 📦 **100% Self-Contained & Drop-In Compatible**:
   * Provides a complete, standalone `TFT_eSPI` class implementation.
@@ -64,7 +65,8 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 
 | CYD Model | Screen Size | Resolution | Controller | Touch Bus | Backlight Pin | Red LED Pin |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **ESP32-2432S028** (Micro-USB) | 2.8" | 240x320 | ILI9341 / ST7789 | Dedicated (Bit-bang) | GPIO 21 | GPIO 4 |
+| **ESP32-2432S028R** (Dual-USB: Type-C + Micro-USB + LDR) | 2.8" | 240x320 | ST7789 | Dedicated (Bit-bang) | GPIO 21 | GPIO 4 |
+| **ESP32-2432S028 / ELEGOO 2.8"** (Single USB-C, no LDR) | 2.8" | 240x320 | ILI9341 | Dedicated (Bit-bang) | GPIO 21 | GPIO 4 |
 | **ESP32-32E 2.8"** (USB-C + Batt) | 2.8" | 240x320 | ILI9341 / ST7789 | Dedicated (Bit-bang) | GPIO 21 | GPIO 22 |
 | **ESP32-024** (2.4" USB-C + Batt) | 2.4" | 240x320 | ST7789 / ILI9341 | Shared HSPI Bus (X/Y Swap) | GPIO 27 | GPIO 4 |
 | **ESP32-32E 3.2"** | 3.2" | 240x320 | ST7789 | Shared HSPI Bus | GPIO 27 | GPIO 22 |
@@ -266,6 +268,20 @@ Resistive touch screens vary physically between individual manufacturing batches
 ---
 
 ## ❓ Frequently Asked Questions (FAQ)
+
+### Q: Screen appears mirrored horizontally
+The library automatically differentiates between 2.8" ILI9341 boards (e.g. ELEGOO 2-Pack) and ST7789 boards (Dual-USB). If you ever need to manually toggle horizontal mirroring for a custom panel, call:
+```cpp
+tft.setMirrorX(true);  // or false to unmirror
+```
+
+### Q: Can I manually force a specific display panel?
+Yes. Call `setPanel()` before `tft.init()`:
+```cpp
+tft.setPanel(CYDR_PANEL_ILI9341); // Force ILI9341
+// or tft.setPanel(CYDR_PANEL_ST7789); // Force ST7789
+tft.init();
+```
 
 ### Q: Colors look inverted (White is Black, Red is Cyan)
 The library automatically handles hardware inversion via `_needsInversion()`. If using a rare non-standard replacement panel, call `tft.invertDisplay(true);` or `tft.invertDisplay(false);`.

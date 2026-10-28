@@ -240,9 +240,17 @@ public:
     }
     bool isBGR() const { return _bgr; }
 
+    // Horizontal mirror control (default false). When true, inverts horizontal axis.
+    void setMirrorX(bool mirror) {
+        _mirrorX = mirror;
+        if (_spi) setRotation(_rotation);
+    }
+    bool isMirrorX() const { return _mirrorX; }
+
 private:
     bool _swapBytes = false;
     bool _bgr = true;
+    bool _mirrorX = false;
     spi_device_handle_t _spi = nullptr;
     cydr_panel_t _panel = CYDR_PANEL_AUTO;
     cydr_board_t _board = CYDR_BOARD_UNKNOWN;
