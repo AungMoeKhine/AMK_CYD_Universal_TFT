@@ -45,8 +45,23 @@ TFT_eSprite waveSprite  = TFT_eSprite(&tft);  // 270x110 16-bit oscilloscope wav
 #define C_TEXT_MUTED 0x94B2
 
 // ── 3. STATE & TELEMETRY ──────────────────────────────────────────────────────
-static int currentTab = 0;       // 0: METER, 1: WAVE, 2: RGB/LDR, 3: LOGO
+static int currentTab = 0;       // 0: METER, 1: WAVE, 2: RGB/LDR, 3: LOGO, 4: DRAW
 static int backlightPct = 100;   // 10 - 100%
+
+// Draw canvas state (Tab 4)
+#define NUM_DRAW_COLORS 7
+const uint16_t DRAW_COLORS[NUM_DRAW_COLORS] = {
+  C_RED_ACC,    // Red
+  C_GREEN_ACC,  // Green
+  0x001F,       // Blue
+  C_CYAN_ACC,   // Cyan
+  C_YELLOW_ACC, // Yellow
+  0xF81F,       // Magenta
+  C_TEXT_WHITE  // White
+};
+static int activeDrawColorIdx = 0; // Default: Red
+static int16_t lastDrawX = -1;
+static int16_t lastDrawY = -1;
 
 // Dynamic screen geometry (computed after tft.init())
 static int SCRW = 320;
@@ -134,14 +149,27 @@ void showSplashScreen() {
     if (tft.getTouch(&tx, &ty)) break; // Skip on tap
     delay(15);
   }
+
+  // Clear splash screen completely
+  tft.fillScreen(C_DARK_BG);
 }
 
+// Forward declarations
+void updateSlider();
+void updateTelemetry();
+void updateBottomStatus(bool isTouched, uint16_t tx, uint16_t ty, bool force = false);
+void initDrawTab();
+void drawColorSelectors();
+void drawClearButton(bool pressed = false);
+void clearDrawCanvas();
+
 // ── 6. UI HEADER & TAB MANAGEMENT ─────────────────────────────────────────────
-const char* TAB_NAMES[] = { "METER", "WAVE", "RGB / LDR", "LOGO" };
+#define NUM_TABS 5
+const char* TAB_NAMES[NUM_TABS] = { "METER", "WAVE", "RGB/LDR", "LOGO", "DRAW" };
 
 void drawTabBar() {
-  int tabW = SCRW / 4;
-  for (int i = 0; i < 4; i++) {
+  int tabW = SCRW / NUM_TABS;
+  for (int i = 0; i < NUM_TABS; i++) {
     int x = i * tabW;
     uint16_t bg = (i == currentTab) ? C_TAB_SEL : C_TAB_UNSEL;
     uint16_t border = (i == currentTab) ? C_CYAN_ACC : C_BORDER;
@@ -161,10 +189,13 @@ void drawTabBar() {
 
 void switchTab(int newTab) {
   currentTab = newTab;
-  drawTabBar();
 
-  // Clear tab client area
-  tft.fillRect(0, 27, SCRW, BOTY - 27, C_DARK_BG);
+  // Fully clear screen with black background so no previous tab/logo remnants remain
+  tft.fillScreen(C_DARK_BG);
+
+  // Redraw tabs and status bar
+  drawTabBar();
+  updateBottomStatus(false, 0, 0, true);
 
   if (currentTab == 0) {
     // ── Tab 0: Meter & Slider Layout ──
@@ -185,6 +216,9 @@ void switchTab(int newTab) {
     tft.setTextColor(C_CYAN_ACC, C_CARD_BG);
     tft.drawString("SYSTEM TELEMETRY", rightX + 10, 108, 1);
     tft.drawFastHLine(rightX + 10, 120, rightW - 20, C_BORDER);
+
+    updateSlider();
+    updateTelemetry();
   }
   else if (currentTab == 1) {
     // ── Tab 1: Waveform Layout ──
@@ -279,6 +313,10 @@ void switchTab(int newTab) {
     tft.drawString("SPI  : 40MHz DMA", cardX + 10, cardY + 110, 1);
     tft.drawString(String("RAM  : ") + String(ESP.getFreeHeap() / 1024) + " KB Free", cardX + 10, cardY + 126, 1);
   }
+  else if (currentTab == 4) {
+    // ── Tab 4: Draw Test Layout ──
+    initDrawTab();
+  }
 }
 
 // ── 7. TAB RENDERING ROUTINES ─────────────────────────────────────────────────
@@ -339,6 +377,9 @@ void updateSlider() {
   int trackW = rightW - 24;
   int trackH = 8;
   int knobX = trackX + ((backlightPct - 10) * trackW) / 90;
+
+  // Clear previous knob and track area to erase ghost remnants
+  tft.fillRect(trackX - 8, trackY - 8, trackW + 16, 24, C_CARD_BG);
 
   // Track progress
   tft.fillRect(trackX, trackY, knobX - trackX, trackH, C_GREEN_ACC);
@@ -441,11 +482,28 @@ void updateLdrDisplay() {
   tft.fillRect(barX + fillW, barY, barW - fillW, barH, C_BORDER);
 }
 
-// Bottom status line
-void updateBottomStatus(bool isTouched, uint16_t tx, uint16_t ty) {
-  tft.fillRect(0, BOTY, SCRW, 18, C_HEADER_BG);
-  tft.setTextDatum(ML_DATUM);
-  tft.setTextColor(C_TEXT_WHITE, C_HEADER_BG);
+// Bottom status line (differential redraw to eliminate flickering)
+void updateBottomStatus(bool isTouched, uint16_t tx, uint16_t ty, bool force) {
+  static bool lastTouched = false;
+  static uint16_t lastTx = 0, lastTy = 0;
+  static uint32_t lastHeap = 0;
+  static bool initialized = false;
+
+  uint32_t curHeap = ESP.getFreeHeap() / 1024;
+
+  if (!force && initialized && (isTouched == lastTouched) && (tx == lastTx) && (ty == lastTy) && (curHeap == lastHeap)) {
+    return;
+  }
+
+  if (!initialized || force) {
+    tft.fillRect(0, BOTY, SCRW, 18, C_HEADER_BG);
+    initialized = true;
+  }
+
+  lastTouched = isTouched;
+  lastTx = tx;
+  lastTy = ty;
+  lastHeap = curHeap;
 
   char buf[80];
   if (isTouched) {
@@ -453,12 +511,77 @@ void updateBottomStatus(bool isTouched, uint16_t tx, uint16_t ty) {
   } else {
     snprintf(buf, sizeof(buf), " Touch: IDLE | Ready");
   }
+
+  tft.setTextDatum(ML_DATUM);
+  tft.setTextColor(C_TEXT_WHITE, C_HEADER_BG);
+  tft.setTextPadding(SCRW - 100);
   tft.drawString(buf, 8, BOTY + 9, 1);
 
   tft.setTextDatum(MR_DATUM);
   tft.setTextColor(C_CYAN_ACC, C_HEADER_BG);
-  snprintf(buf, sizeof(buf), "Heap: %u KB ", (unsigned int)(ESP.getFreeHeap() / 1024));
+  tft.setTextPadding(90);
+  snprintf(buf, sizeof(buf), "Heap: %u KB ", (unsigned int)curHeap);
   tft.drawString(buf, SCRW - 4, BOTY + 9, 1);
+  tft.setTextPadding(0);
+}
+
+// ── Draw Test Helpers (Tab 4) ─────────────────────────────────────────────────
+const int COLOR_SWATCH_SIZE = 22;
+const int COLOR_SWATCH_Y    = 29;
+const int COLOR_START_X     = 8;
+const int COLOR_GAP         = 6;
+
+void drawColorSelectors() {
+  for (int i = 0; i < NUM_DRAW_COLORS; i++) {
+    int bx = COLOR_START_X + i * (COLOR_SWATCH_SIZE + COLOR_GAP);
+    // Clear selection border background
+    tft.drawRect(bx - 2, COLOR_SWATCH_Y - 2, COLOR_SWATCH_SIZE + 4, COLOR_SWATCH_SIZE + 4, C_DARK_BG);
+
+    // Color square
+    tft.fillRect(bx, COLOR_SWATCH_Y, COLOR_SWATCH_SIZE, COLOR_SWATCH_SIZE, DRAW_COLORS[i]);
+    tft.drawRect(bx, COLOR_SWATCH_Y, COLOR_SWATCH_SIZE, COLOR_SWATCH_SIZE, C_BORDER);
+
+    // Active indicator (double-line white frame)
+    if (i == activeDrawColorIdx) {
+      tft.drawRect(bx - 2, COLOR_SWATCH_Y - 2, COLOR_SWATCH_SIZE + 4, COLOR_SWATCH_SIZE + 4, C_TEXT_WHITE);
+      tft.drawRect(bx - 1, COLOR_SWATCH_Y - 1, COLOR_SWATCH_SIZE + 2, COLOR_SWATCH_SIZE + 2, C_TEXT_WHITE);
+    }
+  }
+}
+
+void drawClearButton(bool pressed) {
+  int clearX = SCRW - 76;
+  int clearY = COLOR_SWATCH_Y - 1;
+  int clearW = 68;
+  int clearH = COLOR_SWATCH_SIZE + 2;
+
+  uint16_t bg = pressed ? C_RED_ACC : C_CARD_BG;
+  uint16_t border = pressed ? C_TEXT_WHITE : C_RED_ACC;
+  uint16_t fg = pressed ? C_TEXT_WHITE : C_RED_ACC;
+
+  tft.fillRoundRect(clearX, clearY, clearW, clearH, 3, bg);
+  tft.drawRoundRect(clearX, clearY, clearW, clearH, 3, border);
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(fg, bg);
+  tft.drawString("CLEAR", clearX + clearW / 2, clearY + clearH / 2, 1);
+}
+
+void clearDrawCanvas() {
+  int canvasX = 6;
+  int canvasY = 56;
+  int canvasW = SCRW - 12;
+  int canvasH = BOTY - canvasY - 4;
+
+  tft.fillRect(canvasX, canvasY, canvasW, canvasH, C_DARK_BG);
+  tft.drawRoundRect(canvasX - 2, canvasY - 2, canvasW + 4, canvasH + 4, 3, C_BORDER);
+  lastDrawX = -1;
+  lastDrawY = -1;
+}
+
+void initDrawTab() {
+  drawColorSelectors();
+  drawClearButton(false);
+  clearDrawCanvas();
 }
 
 // ── 8. ARDUINO SETUP ──────────────────────────────────────────────────────────
@@ -503,7 +626,6 @@ void setup() {
 
   // Load Initial Tab
   switchTab(0);
-  updateSlider();
 }
 
 // ── 9. ARDUINO LOOP ───────────────────────────────────────────────────────────
@@ -522,8 +644,8 @@ void loop() {
 
   // Handle Tab Navigation Bar
   if (isTouched && ty < 26) {
-    int touchedTab = tx / (SCRW / 4);
-    if (touchedTab >= 0 && touchedTab < 4 && touchedTab != currentTab) {
+    int touchedTab = tx / (SCRW / NUM_TABS);
+    if (touchedTab >= 0 && touchedTab < NUM_TABS && touchedTab != currentTab) {
       switchTab(touchedTab);
       delay(150); // debounce
     }
@@ -538,9 +660,12 @@ void loop() {
 
     // Slider Dragging
     if (isTouched && tx >= rightX && tx <= rightX + rightW && ty >= 32 && ty <= 96) {
-      backlightPct = constrain(map(tx, trackX, trackX + trackW, 10, 100), 10, 100);
-      tft.setBacklight(backlightPct);
-      updateSlider();
+      int newPct = constrain(map(tx, trackX, trackX + trackW, 10, 100), 10, 100);
+      if (newPct != backlightPct) {
+        backlightPct = newPct;
+        tft.setBacklight(backlightPct);
+        updateSlider();
+      }
     }
 
     // Dynamic Meter Update
@@ -620,6 +745,58 @@ void loop() {
     if (millis() - lastLdr >= 200) {
       lastLdr = millis();
       updateLdrDisplay();
+    }
+  }
+  else if (currentTab == 4) {
+    int canvasX = 6;
+    int canvasY = 56;
+    int canvasW = SCRW - 12;
+    int canvasH = BOTY - canvasY - 4;
+
+    int clearX = SCRW - 76;
+    int clearY = COLOR_SWATCH_Y - 1;
+    int clearW = 68;
+    int clearH = COLOR_SWATCH_SIZE + 2;
+
+    if (isTouched) {
+      // 1. Check Clear Button Tap
+      if (tx >= clearX && tx <= clearX + clearW && ty >= clearY && ty <= clearY + clearH) {
+        drawClearButton(true);
+        clearDrawCanvas();
+        delay(120);
+        drawClearButton(false);
+      }
+      // 2. Check 7 Color Swatch Buttons Tap
+      else if (ty >= COLOR_SWATCH_Y - 3 && ty <= COLOR_SWATCH_Y + COLOR_SWATCH_SIZE + 3) {
+        for (int i = 0; i < NUM_DRAW_COLORS; i++) {
+          int bx = COLOR_START_X + i * (COLOR_SWATCH_SIZE + COLOR_GAP);
+          if (tx >= bx - 3 && tx <= bx + COLOR_SWATCH_SIZE + 3) {
+            if (activeDrawColorIdx != i) {
+              activeDrawColorIdx = i;
+              drawColorSelectors();
+              delay(100);
+            }
+            break;
+          }
+        }
+      }
+      // 3. Drawing inside Canvas
+      else if (tx >= canvasX && tx < canvasX + canvasW && ty >= canvasY && ty < canvasY + canvasH) {
+        uint16_t col = DRAW_COLORS[activeDrawColorIdx];
+        if (lastDrawX >= canvasX && lastDrawX < canvasX + canvasW &&
+            lastDrawY >= canvasY && lastDrawY < canvasY + canvasH) {
+          tft.drawLine(lastDrawX, lastDrawY, tx, ty, col);
+          tft.fillCircle(tx, ty, 1, col);
+        } else {
+          tft.fillCircle(tx, ty, 1, col);
+        }
+        lastDrawX = tx;
+        lastDrawY = ty;
+      }
+    } else {
+      // Touch released - break stroke
+      lastDrawX = -1;
+      lastDrawY = -1;
     }
   }
 
