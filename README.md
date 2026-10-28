@@ -275,6 +275,42 @@ void loop() {}
 
 ---
 
+## 🔤 Typography & Font Reference Guide
+
+`AMK_CYD_Universal_TFT` includes two typography engines to give you complete design flexibility:
+
+### 1. Vector FreeFonts (Smooth Anti-Aliased Look)
+Bundled out of the box in `src/Fonts/GFXFF/` with **zero flash bloat** (unused fonts are stripped automatically by the compiler linker):
+
+| Family | Available Sizes | Common Shorthand Macros | Approx. Height | Recommended Uses |
+|:---|:---:|:---|:---:|:---|
+| **FreeSans** | 9pt, 12pt, 18pt, 24pt | `FSS9`, `FSS12`, `FSS18`, `FSS24`<br>`FSSB9`, `FSSB12` (Bold)<br>`FSSO9`, `FSSBO12` (Oblique) | 14px – 34px | UI cards, headers, sleek modern telemetry |
+| **FreeMono** | 9pt, 12pt, 18pt, 24pt | `FM9`, `FM12`, `FM18`, `FM24`<br>`FMB9`, `FMB12` (Bold) | 14px – 34px | Fixed-width data, terminal consoles, code readouts |
+| **FreeSerif** | 9pt, 12pt, 18pt, 24pt | `FS9`, `FS12`, `FS18`, `FS24`<br>`FSB9`, `FSB12` (Bold)<br>`FSI9`, `FSBI12` (Italic) | 14px – 34px | Elegant classic labels, decorative titles |
+| **TomThumb** | Micro (~5px) | `TT1` | ~6px | Ultra-dense telemetry, compact data logs |
+
+### 2. Classic Built-In 5×7 Bitmap Font
+Selected whenever FreeFonts are disabled via `tft.setFreeFont(NULL)`:
+
+| Setting | Character Size | Best For |
+|:---:|:---:|:---|
+| `setTextSize(1)` | **6 × 8 px** | Compact telemetry (e.g. `Heap: 290KB`, small touch coords) |
+| `setTextSize(2)` | **12 × 16 px** | Standard tabs, buttons, and alert text |
+| `setTextSize(3)` | **18 × 24 px** | Medium dashboard readouts |
+| `setTextSize(4..8)`| **24×32 up to 48×64 px** | High-visibility fullscreen counters |
+
+> [!TIP]
+> **Pro-Tip: Scaling FreeFonts to Giant Sizes**  
+> `setTextSize(scale)` works seamlessly with FreeFonts too! If you need massive numbers (e.g. a 48pt speedometer, huge digital clock digits, or fullscreen temperature gauge), scale a 24pt font by `2`:
+> ```cpp
+> tft.setFreeFont(&FreeSans24pt7b);
+> tft.setTextSize(2); // Multiplies 24pt to 48pt (~68 pixels tall!)
+> tft.drawString("98.6°", 40, 60);
+> tft.setTextSize(1); // Reset back to standard 1x scale
+> ```
+
+---
+
 ## 🎯 Touch Calibration & Noise Filters
 
 Resistive touch screens vary physically between individual manufacturing batches. This library includes a dedicated calibration app in `examples/TouchCalibration/TouchCalibration.ino`:
