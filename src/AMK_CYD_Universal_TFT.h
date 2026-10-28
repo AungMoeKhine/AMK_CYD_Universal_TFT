@@ -19,6 +19,17 @@
 #include "chipguy_CYD_resistive_display.h"
 #include "chipguy_CYD_resistive_touch.h"
 
+#ifndef pgm_read_ptr
+#define pgm_read_ptr(addr) (*(const void **)(addr))
+#endif
+
+#ifndef LOAD_GFXFF
+#define LOAD_GFXFF
+#endif
+
+#include "Fonts/GFXFF/gfxfont.h"
+#include "Free_Fonts.h"
+
 // ─── Type Aliases for Backward & Universal Compatibility ──────────────────────
 using AMK_CYD_display = chipguy_CYD_resistive_display;
 using AMK_CYD_touch   = chipguy_CYD_resistive_touch;
@@ -196,6 +207,9 @@ protected:
     uint16_t _textPadding = 0;
     int16_t  _pivotX      = 0;
     int16_t  _pivotY      = 0;
+    const GFXfont* _gfxFont = nullptr;
+    int8_t   _glyph_ab    = 0;
+    int8_t   _glyph_bb    = 0;
 
     virtual void _pixel(int32_t x, int32_t y, uint16_t color) {
         if (x < 0 || y < 0 || x >= display.width() || y >= display.height()) return;
@@ -306,6 +320,60 @@ protected:
             if (scale == 1) _fill(x + 5, y, 1, 8, bg);
             else _fill(x + 5 * scale, y, scale, ch, bg);
         }
+    }
+
+    virtual int16_t _drawCharGFX(int32_t x, int32_t y, unsigned char c,
+                                 uint16_t fg, uint16_t bg, uint8_t scale) {
+        (void)bg;
+        if (!_gfxFont) return 0;
+        uint16_t first = pgm_read_word(&_gfxFont->first);
+        uint16_t last  = pgm_read_word(&_gfxFont->last);
+        if (c < first || c > last) return 0;
+
+        uint16_t idx = c - first;
+        const GFXglyph* glyphs = (const GFXglyph*)pgm_read_ptr(&_gfxFont->glyph);
+        const uint8_t*  bitmap = (const uint8_t*)pgm_read_ptr(&_gfxFont->bitmap);
+
+        uint32_t bo = pgm_read_word(&glyphs[idx].bitmapOffset);
+        uint8_t  w  = pgm_read_byte(&glyphs[idx].width);
+        uint8_t  h  = pgm_read_byte(&glyphs[idx].height);
+        uint8_t  xa = pgm_read_byte(&glyphs[idx].xAdvance);
+        int8_t   xo = (int8_t)pgm_read_byte(&glyphs[idx].xOffset);
+        int8_t   yo = (int8_t)pgm_read_byte(&glyphs[idx].yOffset);
+
+        uint8_t bits = 0, bit = 0;
+        uint16_t hpc = 0;
+
+        for (uint8_t yy = 0; yy < h; yy++) {
+            for (uint8_t xx = 0; xx < w; xx++) {
+                if (bit == 0) {
+                    bits = pgm_read_byte(&bitmap[bo++]);
+                    bit = 0x80;
+                }
+                if (bits & bit) {
+                    hpc++;
+                } else {
+                    if (hpc) {
+                        if (scale == 1) {
+                            drawFastHLine(x + xo + xx - hpc, y + yo + yy, hpc, fg);
+                        } else {
+                            fillRect(x + (xo + xx - hpc) * scale, y + (yo + yy) * scale, scale * hpc, scale, fg);
+                        }
+                        hpc = 0;
+                    }
+                }
+                bit >>= 1;
+            }
+            if (hpc) {
+                if (scale == 1) {
+                    drawFastHLine(x + xo + w - hpc, y + yo + yy, hpc, fg);
+                } else {
+                    fillRect(x + (xo + w - hpc) * scale, y + (yo + yy) * scale, scale * hpc, scale, fg);
+                }
+                hpc = 0;
+            }
+        }
+        return (int16_t)(xa * scale);
     }
 
 public:
@@ -703,17 +771,80 @@ public:
     void setTextColor(uint16_t fg)               { _textFg = fg; _textBg = fg; }
     void setTextColor(uint16_t fg, uint16_t bg)  { _textFg = fg; _textBg = bg; }
     void setTextSize(uint8_t s)                  { _textSize = (s > 0) ? s : 1; }
-    void setTextFont(uint8_t f)                  { if (f > 0) _textSize = (f > 8) ? 8 : f; }
+    void setTextFont(uint8_t f)                  { _gfxFont = nullptr; if (f > 0) _textSize = (f > 8) ? 8 : f; }
     void setTextDatum(uint8_t d)                 { _textDatum = d; }
     void setTextWrap(bool wrap)                  { _textWrap = wrap; }
     void setTextWrap(bool wrapX, bool wrapY)     { _textWrap = wrapX; (void)wrapY; }
     void setTextPadding(uint16_t padding)        { _textPadding = padding; }
     uint16_t getTextPadding() const              { return _textPadding; }
 
+    void setFreeFont(const GFXfont *f = nullptr) {
+        _gfxFont = f;
+        _glyph_ab = 0;
+        _glyph_bb = 0;
+        if (!_gfxFont) return;
+        uint16_t first = pgm_read_word(&_gfxFont->first);
+        uint16_t last  = pgm_read_word(&_gfxFont->last);
+        if (last < first) return;
+        uint16_t numChars = last - first + 1;
+        const GFXglyph* glyphs = (const GFXglyph*)pgm_read_ptr(&_gfxFont->glyph);
+        for (uint16_t i = 0; i < numChars; i++) {
+            int8_t ab = -(int8_t)pgm_read_byte(&glyphs[i].yOffset);
+            if (ab > _glyph_ab) _glyph_ab = ab;
+            int8_t bb = (int8_t)pgm_read_byte(&glyphs[i].height) - ab;
+            if (bb > _glyph_bb) _glyph_bb = bb;
+        }
+    }
+    const GFXfont* getFreeFont() const { return _gfxFont; }
+
     int16_t drawString(const char* str, int32_t x, int32_t y, uint8_t font = 0) {
         if (!str) return 0;
         uint8_t scale = (font > 0) ? font : _textSize;
+        if (scale == 0) scale = 1;
         if (scale > 8) scale = 8;
+
+        if (_gfxFont && font == 0) {
+            int16_t tw = textWidth(str, 0);
+            int16_t cheight = _glyph_ab * scale;
+            int16_t th = (_glyph_ab + _glyph_bb) * scale;
+            int32_t baselineY = y + cheight;
+
+            switch (_textDatum) {
+                case TC_DATUM: x -= tw / 2; break;
+                case TR_DATUM: x -= tw;     break;
+                case ML_DATUM: baselineY = y + (_glyph_ab - _glyph_bb) * scale / 2; break;
+                case MC_DATUM: x -= tw / 2; baselineY = y + (_glyph_ab - _glyph_bb) * scale / 2; break;
+                case MR_DATUM: x -= tw;     baselineY = y + (_glyph_ab - _glyph_bb) * scale / 2; break;
+                case BL_DATUM: baselineY = y - _glyph_bb * scale; break;
+                case BC_DATUM: x -= tw / 2; baselineY = y - _glyph_bb * scale; break;
+                case BR_DATUM: x -= tw;     baselineY = y - _glyph_bb * scale; break;
+                default: break; // TL_DATUM
+            }
+
+            int32_t padX = x;
+            int16_t padW = tw;
+            if (_textPadding > tw) {
+                padW = _textPadding;
+                if (_textDatum == TC_DATUM || _textDatum == MC_DATUM || _textDatum == BC_DATUM) {
+                    padX = x - (padW - tw) / 2;
+                } else if (_textDatum == TR_DATUM || _textDatum == MR_DATUM || _textDatum == BR_DATUM) {
+                    padX = x - (padW - tw);
+                }
+            }
+
+            if (_textBg != TFT_TRANSPARENT && _textFg != _textBg) {
+                fillRect(padX, baselineY - cheight, padW, th, _textBg);
+            }
+
+            int32_t curX = x;
+            size_t len = strlen(str);
+            for (size_t i = 0; i < len; i++) {
+                curX += _drawCharGFX(curX, baselineY, (unsigned char)str[i], _textFg, _textBg, scale);
+            }
+            if (!isSprite()) display.waitFlush();
+            return tw;
+        }
+
         int len = (int)strlen(str);
         int16_t tw = len * 6 * scale;
         int16_t th = 8 * scale;
@@ -746,6 +877,7 @@ public:
 
         for (int i = 0; i < len; i++)
             _drawChar(x + i * 6 * scale, y, str[i], _textFg, _textBg, scale);
+        if (!isSprite()) display.waitFlush();
         return tw;
     }
 
@@ -790,7 +922,32 @@ public:
     int16_t textWidth(const char* str, uint8_t font = 0) const {
         if (!str) return 0;
         uint8_t scale = (font > 0) ? font : _textSize;
+        if (scale == 0) scale = 1;
         if (scale > 8) scale = 8;
+
+        if (_gfxFont && font == 0) {
+            int16_t w = 0;
+            uint16_t first = pgm_read_word(&_gfxFont->first);
+            uint16_t last  = pgm_read_word(&_gfxFont->last);
+            const GFXglyph* glyphs = (const GFXglyph*)pgm_read_ptr(&_gfxFont->glyph);
+            const char* p = str;
+            while (*p) {
+                uint8_t c = (uint8_t)*p++;
+                if (c >= first && c <= last) {
+                    uint16_t idx = c - first;
+                    uint8_t xa = pgm_read_byte(&glyphs[idx].xAdvance);
+                    if (*p) {
+                        w += xa;
+                    } else {
+                        int8_t xo = (int8_t)pgm_read_byte(&glyphs[idx].xOffset);
+                        uint8_t gw = pgm_read_byte(&glyphs[idx].width);
+                        w += (xa > (xo + gw)) ? xa : (xo + gw);
+                    }
+                }
+            }
+            return w * scale;
+        }
+
         return (int16_t)(strlen(str) * 6 * scale);
     }
     int16_t textWidth(const String &s, uint8_t font = 0) const {
@@ -799,7 +956,11 @@ public:
 
     int16_t fontHeight(uint8_t font = 0) const {
         uint8_t scale = (font > 0) ? font : _textSize;
+        if (scale == 0) scale = 1;
         if (scale > 8) scale = 8;
+        if (_gfxFont && font == 0) {
+            return (int16_t)(pgm_read_byte(&_gfxFont->yAdvance) * scale);
+        }
         return (int16_t)(8 * scale);
     }
 
@@ -954,7 +1115,28 @@ public:
             return 1;
         }
         uint8_t scale = _textSize;
+        if (scale == 0) scale = 1;
         if (scale > 8) scale = 8;
+
+        if (_gfxFont) {
+            uint16_t first = pgm_read_word(&_gfxFont->first);
+            uint16_t last  = pgm_read_word(&_gfxFont->last);
+            if (c >= first && c <= last) {
+                uint16_t idx = c - first;
+                const GFXglyph* glyphs = (const GFXglyph*)pgm_read_ptr(&_gfxFont->glyph);
+                uint8_t xa = pgm_read_byte(&glyphs[idx].xAdvance);
+                int16_t cw = xa * scale;
+                if (_textWrap && (_cursorX + cw > width())) {
+                    _cursorX = 0;
+                    _cursorY += fontHeight();
+                }
+                _drawCharGFX(_cursorX, _cursorY, c, _textFg, _textBg, scale);
+                _cursorX += cw;
+                if (!isSprite()) display.waitFlush();
+            }
+            return 1;
+        }
+
         int16_t cw = 6 * scale;
         int16_t ch = 8 * scale;
         if (_textWrap && (_cursorX + cw > width())) {
@@ -963,6 +1145,7 @@ public:
         }
         _drawChar(_cursorX, _cursorY, c, _textFg, _textBg, scale);
         _cursorX += cw;
+        if (!isSprite()) display.waitFlush();
         return 1;
     }
 

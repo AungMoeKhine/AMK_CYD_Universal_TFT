@@ -40,6 +40,13 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
   * Provides a complete, standalone `TFT_eSPI` class implementation.
   * Does **not** require installing Bodmer's TFT_eSPI library.
   * Drop-in compatible with existing TFT_eSPI drawing calls (`drawString`, `fillRoundRect`, `fillCircle`, `drawTriangle`, etc.).
+* 🔤 **Full Adafruit GFX FreeFonts Support**:
+  * Bundles all 48 standard FreeFonts (`FreeSans`, `FreeMono`, `FreeSerif`, `TomThumb`).
+  * Drop-in support for `tft.setFreeFont(&FreeSans9pt7b)` and `Free_Fonts.h` shorthand aliases (`FSS9`, `FF17`, etc.).
+  * Proportional kerning, baseline alignment, and text measurement across both `tft` and `TFT_eSprite`.
+  * Zero-flash bloat: only fonts referenced in your sketch are compiled into flash memory.
+* 🧭 **Consistent Landscape Orientation**:
+  * Standardized on **Rotation 3** across all library examples, aligning with the physical board design (USB port on the left, MicroSD slot on top).
 * 🎨 **Full Off-Screen Sprite Engine (TFT_eSprite)**:
   * **16-bit color** (RGB565 full depth)
   * **8-bit color** (RGB332 low memory)
@@ -225,6 +232,49 @@ void loop() {
 
 ---
 
+### 3. Beautiful Typography with FreeFonts
+
+```cpp
+#include <Arduino.h>
+#include <AMK_CYD_Universal_TFT.h>
+
+AMK_CYD_display display;
+AMK_CYD_touch   touch;
+TFT_eSPI        tft;
+
+void setup() {
+  tft.init();
+  tft.setRotation(3); // Landscape (USB left, SD top)
+  tft.fillScreen(TFT_BLACK);
+
+  // 1. Direct font pointer:
+  tft.setFreeFont(&FreeSans9pt7b);
+  tft.setTextColor(TFT_CYAN, TFT_BLACK);
+  tft.drawString("FreeSans 9pt Regular", 20, 30);
+
+  // 2. Shorthand macro from Free_Fonts.h:
+  tft.setFreeFont(FSSB12); // FreeSans Bold 12pt
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.drawString("FreeSans Bold 12pt", 20, 65);
+
+  // 3. Print / println cursor streams:
+  tft.setFreeFont(FM9);    // FreeMono 9pt
+  tft.setTextColor(TFT_GREEN, TFT_BLACK);
+  tft.setCursor(20, 110);
+  tft.print("CPU: 240MHz | Temp: ");
+  tft.println(23.5);
+
+  // 4. Reset to classic GLCD 5x7 font:
+  tft.setFreeFont(NULL);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawString("Back to classic fixed-pitch font", 20, 150);
+}
+
+void loop() {}
+```
+
+---
+
 ## 🎯 Touch Calibration & Noise Filters
 
 Resistive touch screens vary physically between individual manufacturing batches. This library includes a dedicated calibration app in `examples/TouchCalibration/TouchCalibration.ino`:
@@ -294,6 +344,44 @@ Upload and run the `TouchCalibration` example from this library, follow the cros
 
 ### Q: Board boot loops with CORRUPT HEAP or PSRAM errors
 In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled**. CYD boards do not have external PSRAM chips.
+
+---
+
+## 📂 Included Examples
+
+| Example | Description |
+|:---|:---|
+| **`QuickStart`** | Minimal boilerplate template showcasing hardware auto-detection, status logging, and a simple touch dot drawing loop. |
+| **`BasicTouchDemo`** | Full touch diagnostic canvas showing real-time `(X, Y)` touch coordinates, crosshair tracking, pressure values, and screen boundaries. |
+| **`TouchCalibration`** | Interactive multi-stage calibration tool. Features 4-point crosshair calibration, pressure thresholding, jump filters, a live test drawing canvas, and persistent storage in NVS Flash. |
+| **`SpriteDemo`** | High-performance 5-tab UI dashboard: <br>• **`METER`**: Smooth 124x124 analog power gauge sprite + backlight brightness drag slider.<br>• **`WAVE`**: Real-time 270x110 oscilloscope waveform buffer with speed and pause controls.<br>• **`RGB/LDR`**: Onboard active-low RGB LED color tester and LDR photoresistor ambient light level bar.<br>• **`DRAW`**: Interactive touch drawing canvas with 7-color square palette selection and a Clear button.<br>• **`LOGO`**: AMK Studio splash screen with auto-detected board model, panel name, resolution, and RAM telemetry. |
+
+---
+
+## 📝 Release History & Changelog
+
+### v1.1.0
+* **Adafruit GFX / FreeFonts Support**:
+  * Integrated full support for standard Adafruit GFX FreeFonts (`setFreeFont()`, `textWidth()`, `fontHeight()`, `print()`, `println()`).
+  * Bundled all 48 standard GFX font tables in `src/Fonts/GFXFF/` and provided `Free_Fonts.h` shorthand aliases.
+  * Supports both direct pointers (`&FreeSans9pt7b`) and shorthand macros (`FSS9`, `FF17`, etc.).
+  * Resetting with `setFreeFont(NULL)` seamlessly returns to the classic 5x7 font.
+  * Works across both the physical display (`tft`) and off-screen RAM buffers (`TFT_eSprite`).
+* **Interactive DRAW Test Tab (`SpriteDemo`)**:
+  * Added 5th tab with a responsive drawing canvas, 7 selectable color square buttons (Red, Green, Blue, Cyan, Yellow, Magenta, White), and a tactile CLEAR button.
+  * Selection indicator cleans up cleanly with zero artifacts when switching colors.
+  * Positioned before the `LOGO` tab (`METER`, `WAVE`, `RGB/LDR`, `DRAW`, `LOGO`).
+* **SpriteDemo Polish**:
+  * Fixed backlight drag slider white knob ghost artifacts by wiping the track bounding box prior to redrawing.
+  * Eliminated bottom status bar flickering using differential state tracking and text background padding.
+  * Eradicated leftover logo remnants between tabs and body cards upon splash screen exit and tab switching.
+* **Orientation Standardization**:
+  * Standardized all library examples on **Rotation 3** for landscape mode (USB port on the left, MicroSD slot on top) for complete consistency with the calibration utility.
+
+### v1.0.2
+* Dynamic hardware probing for ST7789, ILI9341, and ST7796 display controllers.
+* Automatic backlight and RGB LED pin assignment across all CYD variants.
+* Model-isolated NVS touch calibration storage.
 
 ---
 
