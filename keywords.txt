@@ -12,6 +12,7 @@ chipguy_CYD_resistive_display	KEYWORD1
 chipguy_CYD_resistive_touch	KEYWORD1
 AMK_CYD_display	KEYWORD1
 AMK_CYD_touch	KEYWORD1
+AMK_CYD_LVGL	KEYWORD1
 cydr_panel_t	KEYWORD1
 cydr_board_t	KEYWORD1
 
