@@ -458,6 +458,15 @@ In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled*
 
 ## 📝 Release History & Changelog
 
+### v1.2.1
+* **Zero-Boilerplate LVGL Integration Helper (`AMK_CYD_LVGL.h`)**:
+  * Added `AMK_CYD_LVGL` class supporting **both LVGL v8.x and v9.x** with runtime version detection (`LVGL_VERSION_MAJOR`).
+  * **Hardware DMA Double-Buffering & Sync**: Allocates dual draw buffers in internal SRAM with explicit `waitFlush()` synchronization, ensuring tear-free rendering and color stability.
+  * Automatically handles DMA draw buffer allocation in ESP32 internal SRAM, RGB565 byte-swapping (`setSwapBytes`), display flushing (`flushRegion`), and touch pointer mapping (`touch.read`) in 1 line: `lvgl.begin(display, touch);`.
+  * **Bundled `lv_conf.h`**: Ships with a pre-configured, optimized `lv_conf.h` so users don't have to manually create or copy configuration files.
+  * Preserves 100% backward compatibility with zero RAM/flash overhead for non-LVGL users.
+  * Added `LVGL_QuickStart` example.
+
 ### v1.2.0
 * **Zero-Boilerplate LVGL Integration Helper (`AMK_CYD_LVGL.h`)**:
   * Added `AMK_CYD_LVGL` class supporting **both LVGL v8.x and v9.x** with runtime version detection (`LVGL_VERSION_MAJOR`).
