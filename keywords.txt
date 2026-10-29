@@ -21,6 +21,7 @@ cydr_board_t	KEYWORD1
 #######################################
 init	KEYWORD2
 begin	KEYWORD2
+tick	KEYWORD2
 setRotation	KEYWORD2
 getRotation	KEYWORD2
 setSwapBytes	KEYWORD2

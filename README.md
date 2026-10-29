@@ -53,6 +53,10 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
   * **8-bit color** (RGB332 low memory)
   * **4-bit color** (16-color indexed palette: run full 240x240 analog gauges in only ~28 KB RAM!)
   * Supports transparent color keying and push-to-display / push-to-sprite.
+* 🚀 **Zero-Boilerplate LVGL v8.x & v9.x Support**:
+  * Built-in `AMK_CYD_LVGL` helper turns 70+ lines of confusing DMA buffer, display flushing, and touch driver setup into 1 single line (`lvgl.begin(display, touch);`).
+  * Features hardware DMA double-buffering in ESP32 internal SRAM for silky-smooth 60 FPS graphics with zero tearing.
+  * Bundles a pre-configured `lv_conf.h` so sketches compile immediately out of the box with zero manual configuration.
 * 👆 **Universal XPT2046 Resistive Touch Driver**:
   * Automatically switches between dedicated bit-banging and hardware HSPI SPI bus arbitration.
   * Handles native coordinate rotation and axis swapping transparently.

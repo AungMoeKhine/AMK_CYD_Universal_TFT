@@ -114,6 +114,8 @@ AMK_CYD_Universal_TFT/
 ├── src/                        <-- All driver sources compiled by Arduino IDE
 │   ├── AMK_CYD_Universal_TFT.h
 │   ├── AMK_CYD_Universal_TFT.cpp
+│   ├── AMK_CYD_LVGL.h          <-- Zero-boilerplate LVGL v8/v9 integration wrapper
+│   ├── lv_conf.h               <-- Pre-configured LVGL configuration header
 │   ├── AMK_TFT.h
 │   ├── chipguy_CYD_resistive_display.h
 │   ├── chipguy_CYD_resistive_display.cpp
@@ -132,8 +134,10 @@ AMK_CYD_Universal_TFT/
     ├── SpriteDemo/
     │   ├── SpriteDemo.ino
     │   └── logo_tft.h
-    └── FreeFontDemo/
-        └── FreeFontDemo.ino
+    ├── FreeFontDemo/
+    │   └── FreeFontDemo.ino
+    └── LVGL_QuickStart/
+        └── LVGL_QuickStart.ino <-- 1-line LVGL initialization demo
 ```
 
 ---
