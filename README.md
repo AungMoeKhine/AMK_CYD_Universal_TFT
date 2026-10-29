@@ -1,7 +1,7 @@
 # AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.2.0-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.2.1-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD-2.4%22%20%7C%202.8%22%20%7C%203.2%22%20%7C%203.5%22%20%7C%204.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
@@ -459,13 +459,10 @@ In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled*
 ## 📝 Release History & Changelog
 
 ### v1.2.1
-* **Zero-Boilerplate LVGL Integration Helper (`AMK_CYD_LVGL.h`)**:
-  * Added `AMK_CYD_LVGL` class supporting **both LVGL v8.x and v9.x** with runtime version detection (`LVGL_VERSION_MAJOR`).
-  * **Hardware DMA Double-Buffering & Sync**: Allocates dual draw buffers in internal SRAM with explicit `waitFlush()` synchronization, ensuring tear-free rendering and color stability.
-  * Automatically handles DMA draw buffer allocation in ESP32 internal SRAM, RGB565 byte-swapping (`setSwapBytes`), display flushing (`flushRegion`), and touch pointer mapping (`touch.read`) in 1 line: `lvgl.begin(display, touch);`.
-  * **Bundled `lv_conf.h`**: Ships with a pre-configured, optimized `lv_conf.h` so users don't have to manually create or copy configuration files.
-  * Preserves 100% backward compatibility with zero RAM/flash overhead for non-LVGL users.
-  * Added `LVGL_QuickStart` example.
+* **Hardware DMA Synchronization & Tear-Free Rendering**:
+  * Implemented true hardware DMA double-buffering in internal SRAM (`_draw_buf_mem1` and `_draw_buf_mem2`).
+  * Added explicit `_display->waitFlush()` hardware synchronization before `lv_display_flush_ready()`, completely eliminating horizontal white tearing bars and color inversion artifacts during high-speed rendering.
+  * Added explicit C++ pointer cast in `LVGL_QuickStart` event callback for strict compiler compatibility.
 
 ### v1.2.0
 * **Zero-Boilerplate LVGL Integration Helper (`AMK_CYD_LVGL.h`)**:
