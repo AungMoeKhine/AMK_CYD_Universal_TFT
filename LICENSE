@@ -1,9 +1,9 @@
-﻿MIT License
+MIT License
 
 Copyright (c) 2026 Aung Moe Khine
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the Software), to deal
+of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
@@ -12,10 +12,34 @@ furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+================================================================================
+Third-Party Open-Source Software Notices & Acknowledgments
+================================================================================
+This software incorporates, adapts, or builds upon open-source code from the
+following projects under their respective permissive open-source licenses:
+
+1. ESP32-CYD-Resistive_display / cyd2432S028_display
+   Copyright (c) chipguyhere (https://github.com/chipguyhere)
+   License: MIT License
+   Provides hardware auto-probing, panel detection, and touch bus arbitration.
+
+2. TFT_eSPI
+   Copyright (c) Bodmer (https://github.com/Bodmer/TFT_eSPI)
+   License: MIT License / FreeBSD License
+   Provides graphics rendering primitives and TFT_eSprite buffer architecture.
+
+3. Adafruit_GFX Library & GFX FreeFonts
+   Copyright (c) 2012 Adafruit Industries (https://github.com/adafruit/Adafruit-GFX-Library)
+   License: BSD License
+   Provides standard vector glyph tables and typography engine.
+   Redistribution and use in source and binary forms, with or without modification,
+   are permitted provided that the copyright notices, conditions, and disclaimers
+   are retained as specified in the original BSD license.

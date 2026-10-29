@@ -1,6 +1,7 @@
 # AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
+[![Release](https://img.shields.io/badge/Release-v1.1.1-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD-2.4%22%20%7C%202.8%22%20%7C%203.2%22%20%7C%203.5%22%20%7C%204.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
@@ -397,39 +398,43 @@ In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled*
 
 ## 📝 Release History & Changelog
 
-### v1.1.1
-* **Automatic Subpixel Color Consistency (RGB vs BGR)**:
-  * Removed hard-coded `tft.setBGR(false)` override from `TouchCalibration.ino`. Now all sketches rely on the driver's built-in automatic hardware probing, ensuring ILI9341 / ST7796 (BGR physical panels) and ST7789 (RGB physical panels) render all colors 100% accurately without manual intervention.
-* **New `FreeFontDemo` Showcase Example**:
-  * Added an interactive, touch-enabled 5-page showcase demonstrating font families, point size hierarchies, the 2x vector scaling pro-tip, text datum alignment anchors, and real-time off-screen `TFT_eSprite` telemetry.
-
-### v1.1.0
-* **Adafruit GFX / FreeFonts Support**:
-  * Integrated full support for standard Adafruit GFX FreeFonts (`setFreeFont()`, `textWidth()`, `fontHeight()`, `print()`, `println()`).
-  * Bundled all 48 standard GFX font tables in `src/Fonts/GFXFF/` and provided `Free_Fonts.h` shorthand aliases.
-  * Supports both direct pointers (`&FreeSans9pt7b`) and shorthand macros (`FSS9`, `FF17`, etc.).
-  * Resetting with `setFreeFont(NULL)` seamlessly returns to the classic 5x7 font.
-  * Works across both the physical display (`tft`) and off-screen RAM buffers (`TFT_eSprite`).
-* **Interactive DRAW Test Tab (`SpriteDemo`)**:
-  * Added 5th tab with a responsive drawing canvas, 7 selectable color square buttons (Red, Green, Blue, Cyan, Yellow, Magenta, White), and a tactile CLEAR button.
-  * Selection indicator cleans up cleanly with zero artifacts when switching colors.
-  * Positioned before the `LOGO` tab (`METER`, `WAVE`, `RGB/LDR`, `DRAW`, `LOGO`).
-* **SpriteDemo Polish**:
-  * Fixed backlight drag slider white knob ghost artifacts by wiping the track bounding box prior to redrawing.
-  * Eliminated bottom status bar flickering using differential state tracking and text background padding.
-  * Eradicated leftover logo remnants between tabs and body cards upon splash screen exit and tab switching.
-* **Orientation Standardization**:
-  * Standardized all library examples on **Rotation 3** for landscape mode (USB port on the left, MicroSD slot on top) for complete consistency with the calibration utility.
-
-### v1.0.2
-* Dynamic hardware probing for ST7789, ILI9341, and ST7796 display controllers.
-* Automatic backlight and RGB LED pin assignment across all CYD variants.
-* Model-isolated NVS touch calibration storage.
+### v1.1.1 (First Official Public Release)
+* **Universal Hardware Probing & Zero Configuration**:
+  * Out-of-the-box runtime auto-detection for the entire ESP32 CYD family (2.4", 2.8", 3.2", 3.5", 4.0").
+  * Automatic controller probing for ST7789, ILI9341, and ST7796 displays via SPI register reads.
+  * Smart 2.8" Silent-MISO probing on LDR (GPIO 34) to automatically differentiate between Dual-USB ST7789 and ELEGOO ILI9341 boards.
+  * Automatic backlight pin mapping (GPIO 21 on 2.8", GPIO 27 on other variants) and PWM brightness control (`setBacklight()`).
+  * Automatic RGB LED pin detection (GPIO 4 vs GPIO 22).
+  * Seamless subpixel color order handling (BGR vs RGB) across all panels with zero manual tweaking.
+* **Adafruit GFX / FreeFonts Typography Engine**:
+  * Bundled all 48 standard FreeFonts (`FreeSans`, `FreeSerif`, `FreeMono`, `TomThumb`) in `src/Fonts/GFXFF/`.
+  * Shorthand macros via `Free_Fonts.h` (`FSS9`, `FSSB12`, `FM18`, `FSB24`, `TT1`, etc.) and direct pointer support (`&FreeSans9pt7b`).
+  * Vector font scaling via `setTextSize(scale)` (e.g. 2x scale on 24pt produces ~68px tall hero telemetry numbers).
+  * Proportional kerning, accurate baseline and text measurement (`textWidth()`, `fontHeight()`), and text datum anchors (`setTextDatum`).
+  * Instant fallback to classic 5x7 fixed-pitch font via `setFreeFont(NULL)`.
+  * Seamless support across both the physical display (`tft`) and RAM buffers (`TFT_eSprite`).
+* **Full Off-Screen Sprite Engine (`TFT_eSprite`)**:
+  * 16-bit RGB565 full color, 8-bit RGB332 low RAM, and 4-bit 16-color indexed palette modes.
+  * Eliminates screen flickering with instant DMA/SPI buffer pushes.
+* **Universal XPT2046 Resistive Touch Engine**:
+  * Automatically handles both dedicated bit-bang pins (2.8") and shared HSPI bus arbitration (2.4", 3.2", 3.5", 4.0").
+  * Multi-stage calibration tool (`TouchCalibration`) with model-isolated NVS flash persistence and adjustable noise/jump filters.
+* **Standardized Landscape Orientation**:
+  * Standardized on **Rotation 3** across all library examples (USB port on left, MicroSD slot on top).
+* **Complete Example Suite**:
+  * `QuickStart`: Minimal hardware test boilerplate.
+  * `BasicTouchDemo`: Real-time crosshair coordinates and boundary diagnostics.
+  * `TouchCalibration`: 4-corner interactive calibration and NVS flash storage.
+  * `SpriteDemo`: High-performance 5-tab dashboard (`METER`, `WAVE`, `RGB/LDR`, `DRAW`, `LOGO`).
+  * `FreeFontDemo`: 5-page interactive typography showcase (families, sizes, scaling, datums, smooth sprite telemetry).
 
 ---
 
 ## 👤 Author & Acknowledgments
 
-* **Author**: Aung Moe Khine ([@aungmoekhine](https://github.com/aungmoekhine))
-* **Architecture & Inspiration**: Built upon hardware probing techniques and high-speed driver routines from the ESP32 open-source maker community.
-* **License**: MIT License — free for hobbyist and commercial projects.
+* **Author & Maintainer**: Aung Moe Khine ([@aungmoekhine](https://github.com/aungmoekhine) • [aungmoekhine@gmail.com](mailto:aungmoekhine@gmail.com))
+* **Upstream Inspiration & Open-Source Attribution**:
+  * **[chipguyhere](https://github.com/chipguyhere)**: Low-level CYD hardware probing routines, backlight detection, and touch SPI arbitration (MIT License).
+  * **[Bodmer (TFT_eSPI)](https://github.com/Bodmer/TFT_eSPI)**: Graphics primitive algorithms, color conversions, and off-screen sprite architecture (MIT/FreeBSD License).
+  * **[Adafruit Industries](https://github.com/adafruit/Adafruit-GFX-Library)**: Adafruit GFX typography system and FreeFonts (BSD License).
+* **License**: MIT License with third-party attribution notices. Free for hobbyist, educational, and commercial projects.
