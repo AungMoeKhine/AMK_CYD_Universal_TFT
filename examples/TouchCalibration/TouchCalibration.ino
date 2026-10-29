@@ -722,9 +722,8 @@ void setup() {
   pinMode(CAL_BOOT_PIN, INPUT_PULLUP);
   pinMode(TOUCH_IRQ_PIN, INPUT);
 
-  // Initialize display and touch with AMK_TFT auto-detection
+  // Initialize display and touch with AMK_CYD auto-detection
   tft.init();
-  tft.setBGR(false); // True RGB subpixel mode (Red=Red, Blue=Blue, Cyan=Cyan)
   tft.setRotation(3);
   setBacklight(255);
   SCRW = tft.width();

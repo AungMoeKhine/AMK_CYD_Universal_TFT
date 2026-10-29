@@ -389,12 +389,19 @@ In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled*
 |:---|:---|
 | **`QuickStart`** | Minimal boilerplate template showcasing hardware auto-detection, status logging, and a simple touch dot drawing loop. |
 | **`BasicTouchDemo`** | Full touch diagnostic canvas showing real-time `(X, Y)` touch coordinates, crosshair tracking, pressure values, and screen boundaries. |
+| **`FreeFontDemo`** | Comprehensive typography showcase featuring 5 interactive pages: font families comparison, proportional point sizes, giant vector scaling (`setTextSize(2)`), accurate text datum alignment anchors, and smooth dynamic off-screen sprite telemetry. |
 | **`TouchCalibration`** | Interactive multi-stage calibration tool. Features 4-point crosshair calibration, pressure thresholding, jump filters, a live test drawing canvas, and persistent storage in NVS Flash. |
 | **`SpriteDemo`** | High-performance 5-tab UI dashboard: <br>• **`METER`**: Smooth 124x124 analog power gauge sprite + backlight brightness drag slider.<br>• **`WAVE`**: Real-time 270x110 oscilloscope waveform buffer with speed and pause controls.<br>• **`RGB/LDR`**: Onboard active-low RGB LED color tester and LDR photoresistor ambient light level bar.<br>• **`DRAW`**: Interactive touch drawing canvas with 7-color square palette selection and a Clear button.<br>• **`LOGO`**: AMK Studio splash screen with auto-detected board model, panel name, resolution, and RAM telemetry. |
 
 ---
 
 ## 📝 Release History & Changelog
+
+### v1.1.1
+* **Automatic Subpixel Color Consistency (RGB vs BGR)**:
+  * Removed hard-coded `tft.setBGR(false)` override from `TouchCalibration.ino`. Now all sketches rely on the driver's built-in automatic hardware probing, ensuring ILI9341 / ST7796 (BGR physical panels) and ST7789 (RGB physical panels) render all colors 100% accurately without manual intervention.
+* **New `FreeFontDemo` Showcase Example**:
+  * Added an interactive, touch-enabled 5-page showcase demonstrating font families, point size hierarchies, the 2x vector scaling pro-tip, text datum alignment anchors, and real-time off-screen `TFT_eSprite` telemetry.
 
 ### v1.1.0
 * **Adafruit GFX / FreeFonts Support**:

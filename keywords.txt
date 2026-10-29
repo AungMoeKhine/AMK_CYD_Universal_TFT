@@ -76,6 +76,8 @@ drawNumber	KEYWORD2
 drawFloat	KEYWORD2
 textWidth	KEYWORD2
 fontHeight	KEYWORD2
+setFreeFont	KEYWORD2
+getFreeFont	KEYWORD2
 color565	KEYWORD2
 color16to8	KEYWORD2
 color8to16	KEYWORD2
