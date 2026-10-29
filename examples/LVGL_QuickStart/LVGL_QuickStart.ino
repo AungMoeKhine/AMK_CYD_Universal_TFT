@@ -3,7 +3,7 @@
  * Minimal boilerplate demonstrating LVGL integration in under 5 lines!
  *
  * Requirements:
- * Install the "lvgl" library (v8.x, e.g. 8.3.11) via Arduino IDE Library Manager.
+ * Install the "lvgl" library (v8.x or v9.x) via Arduino IDE Library Manager.
  */
 
 #include <Arduino.h>
@@ -17,7 +17,7 @@ AMK_CYD_LVGL    lvgl;
 
 static void btn_event_cb(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t * btn = lv_event_get_target(e);
+    lv_obj_t * btn = (lv_obj_t *)lv_event_get_target(e);
     if (code == LV_EVENT_CLICKED) {
         static uint8_t count = 0;
         count++;

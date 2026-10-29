@@ -278,12 +278,15 @@ void loop() {}
 
 ### 4. High-Performance UI with LVGL (Zero-Boilerplate)
 
-`AMK_CYD_Universal_TFT` includes a built-in hardware bridge for **LVGL (Light and Versatile Graphics Library)**, turning 70+ lines of confusing DMA buffer and touch driver setup into **1 single line**:
+`AMK_CYD_Universal_TFT` includes a built-in hardware bridge for **LVGL (Light and Versatile Graphics Library)**, turning 70+ lines of confusing DMA buffer, display flushing, and touch driver setup into **1 single line**:
 
-#### 📥 3-Step Setup:
+#### 📥 Easy Setup (Supports LVGL v8.x & v9.x):
 1. In Arduino IDE, open **Tools** -> **Manage Libraries...** (or `Ctrl+Shift+I`).
-2. Search for **`lvgl`** and click **Install** (*v8.3.x recommended, e.g. 8.3.11*).
+2. Search for **`lvgl`** and click **Install** (*Both LVGL v8.x and v9.x are fully supported!*).
 3. In your sketch, `#include <AMK_CYD_LVGL.h>` and call `lvgl.begin(display, touch);`!
+
+> [!NOTE]
+> **Pre-Configured `lv_conf.h` Included**: Standard LVGL on Arduino typically requires manually finding and copying `lv_conf.h`. `AMK_CYD_Universal_TFT` bundles an optimized, ready-to-use `lv_conf.h` directly inside its `src/` directory, so your sketch compiles immediately out of the box with zero configuration!
 
 ```cpp
 #include <Arduino.h>
@@ -323,7 +326,7 @@ void loop() {
 ```
 
 > [!TIP]
-> **Why keep LVGL separate in Library Manager?**  
+> **Why keep LVGL in Library Manager?**  
 > Unlike display hardware drivers, LVGL is a 60+ MB operating system UI framework with hundreds of widgets and animations. Keeping it in the Library Manager prevents your project from becoming bloated, avoids duplicate symbol conflicts with other libraries, and lets you update LVGL directly whenever new upstream bug fixes are released!
 
 ---
@@ -452,8 +455,10 @@ In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled*
 ## 📝 Release History & Changelog
 
 ### v1.2.0
-* **Zero-Boilerplate LVGL Helper (`AMK_CYD_LVGL.h`)**:
-  * Added `AMK_CYD_LVGL` class that initializes LVGL v8, allocates DMA draw buffers in internal SRAM, and registers display flush (`flushRegion`) and touch read (`touch.read`) in a single line: `lvgl.begin(display, touch);`.
+* **Zero-Boilerplate LVGL Integration Helper (`AMK_CYD_LVGL.h`)**:
+  * Added `AMK_CYD_LVGL` class supporting **both LVGL v8.x and v9.x** with runtime version detection (`LVGL_VERSION_MAJOR`).
+  * Automatically handles DMA draw buffer allocation in ESP32 internal SRAM, RGB565 byte-swapping (`setSwapBytes`), display flushing (`flushRegion`), and touch pointer mapping (`touch.read`) in 1 line: `lvgl.begin(display, touch);`.
+  * **Bundled `lv_conf.h`**: Ships with a pre-configured, optimized `lv_conf.h` so users don't have to manually create or copy configuration files.
   * Preserves 100% backward compatibility with zero RAM/flash overhead for non-LVGL users.
   * Added `LVGL_QuickStart` example.
 
