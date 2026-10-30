@@ -109,13 +109,19 @@ When compiling for any CYD board, use the following settings in the Arduino IDE:
 
 ## 📥 Installation
 
-### Method 1: Arduino IDE (ZIP Install)
+### Method 1: Official Arduino IDE Library Manager (Recommended)
+The fastest and easiest way to install and receive automatic updates:
+1. In Arduino IDE, open **Tools** ➔ **Manage Libraries...** (or press `Ctrl + Shift + I`).
+2. In the search bar, type: **`AMK_CYD_Universal_TFT`**
+3. Click **Install**!
+
+### Method 2: Arduino IDE (ZIP Install)
 1. Download this repository as a `.ZIP` file from GitHub (`Code` -> `Download ZIP`).
 2. Open **Arduino IDE**.
 3. Navigate to **Sketch** -> **Include Library** -> **Add .ZIP Library...**
 4. Select the downloaded `AMK_CYD_Universal_TFT.zip`.
 
-### Method 2: Git Clone
+### Method 3: Git Clone
 Clone directly into your Arduino libraries directory:
 ```bash
 # Windows (PowerShell)
@@ -127,7 +133,7 @@ cd ~/Documents/Arduino/libraries
 git clone https://github.com/aungmoekhine/AMK_CYD_Universal_TFT.git
 ```
 
-### Method 3: PlatformIO (`platformio.ini`)
+### Method 4: PlatformIO (`platformio.ini`)
 ```ini
 [env:esp32dev]
 platform = espressif32
@@ -345,7 +351,8 @@ Want to design your CYD touch interface visually without hand-coding pixel coord
 
 1. **Design Visually**: Open SquareLine Studio or EEZ Studio, set resolution to `320x240` (or `480x320`), and drag & drop buttons, sliders, arc dials, and charts onto the screen.
 2. **Export UI Files**: Click **Export** ➔ **Export UI Files** and place the generated `ui.h`, `ui.c`, and assets directly into your Arduino sketch folder.
-3. **Launch in 1 Line**:
+3. **Control Real Hardware**: Connect UI sliders to LCD backlight PWM, switches to onboard LEDs, and dials to sensor telemetry:
+
 ```cpp
 #include <Arduino.h>
 #include <AMK_CYD_Universal_TFT.h>
@@ -357,14 +364,35 @@ AMK_CYD_touch   touch;
 TFT_eSPI        tft;
 AMK_CYD_LVGL    lvgl;
 
+// 1. Backlight Slider Event: Controls physical CYD LCD backlight PWM!
+void ui_event_slider_brightness(lv_event_t * e) {
+    lv_obj_t * slider = (lv_obj_t *)lv_event_get_target(e);
+    int32_t val = lv_slider_get_value(slider);
+    display.setBacklight((uint8_t)val); // 0-100% PWM brightness
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%d%%", (int)val);
+    lv_label_set_text(ui_LabelBrightValue, buf);
+}
+
+// 2. Onboard RGB LED Switch Event: Toggles the CYD onboard LED!
+void ui_event_switch_led(lv_event_t * e) {
+    lv_obj_t * sw = (lv_obj_t *)lv_event_get_target(e);
+    bool state = lv_obj_has_state(sw, LV_STATE_CHECKED);
+    uint8_t pin = display.redLedPin();
+    pinMode(pin, OUTPUT);
+    digitalWrite(pin, state ? LOW : HIGH); // Active-low (LOW = ON)
+}
+
 void setup() {
   tft.init();
   tft.setRotation(3);
+  tft.setBacklight(100);
+
   touch.begin(display);
   touch.setRotation(3);
   touch.loadCalibration();
 
-  // Initialize LVGL hardware bridge & DMA double buffers
+  // 1-line LVGL initialization & DMA double-buffering
   lvgl.begin(display, touch);
 
   // Initialize visual GUI!
@@ -377,7 +405,7 @@ void loop() {
 }
 ```
 > [!TIP]
-> Check out the included **`VisualGUI_QuickStart`** example in this library to see a complete working smart thermostat and hardware control dashboard!
+> Open **File** ➔ **Examples** ➔ **AMK_CYD_Universal_TFT** ➔ **`VisualGUI_QuickStart`** to try this full interactive smart room dashboard right now!
 
 ---
 
