@@ -398,35 +398,31 @@ In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled*
 
 ## 📝 Release History & Changelog
 
+### v1.3.0
+* **Visual Drag-and-Drop GUI Support (SquareLine Studio & EEZ Studio)**:
+  * Full out-of-the-box compatibility with exported C/C++ code from SquareLine Studio and EEZ Studio.
+  * Added new VisualGUI_QuickStart example featuring a responsive smart thermostat and hardware control dashboard.
+  * Expanded Montserrat Typography in lv_conf.h (sizes 10, 12, 14, 16, 18, 20, 22, and 24).
+  * Added visual GUI integration guide and project setup instructions.
+
+### v1.2.1
+* **Hardware DMA Synchronization & Tear-Free Rendering**:
+  * Implemented true hardware DMA double-buffering in internal SRAM.
+  * Added explicit waitFlush() synchronization, completely eliminating horizontal white tearing bars and color inversion artifacts.
+  * Added explicit C++ pointer cast in LVGL_QuickStart callback.
+
+### v1.2.0
+* **Zero-Boilerplate LVGL Integration Helper (AMK_CYD_LVGL.h)**:
+  * Added AMK_CYD_LVGL class supporting both LVGL v8.x and v9.x.
+  * Automatically handles DMA draw buffer allocation in SRAM, RGB565 byte-swapping, display flushing, and touch pointer mapping in 1 line.
+  * Bundled lv_conf.h.
+  * Added LVGL_QuickStart example.
+
 ### v1.1.1 (First Official Public Release)
-* **Universal Hardware Probing & Zero Configuration**:
-  * Out-of-the-box runtime auto-detection for the entire ESP32 CYD family (2.4", 2.8", 3.2", 3.5", 4.0").
-  * Automatic controller probing for ST7789, ILI9341, and ST7796 displays via SPI register reads.
-  * Smart 2.8" Silent-MISO probing on LDR (GPIO 34) to automatically differentiate between Dual-USB ST7789 and ELEGOO ILI9341 boards.
-  * Automatic backlight pin mapping (GPIO 21 on 2.8", GPIO 27 on other variants) and PWM brightness control (`setBacklight()`).
-  * Automatic RGB LED pin detection (GPIO 4 vs GPIO 22).
-  * Seamless subpixel color order handling (BGR vs RGB) across all panels with zero manual tweaking.
-* **Adafruit GFX / FreeFonts Typography Engine**:
-  * Bundled all 48 standard FreeFonts (`FreeSans`, `FreeSerif`, `FreeMono`, `TomThumb`) in `src/Fonts/GFXFF/`.
-  * Shorthand macros via `Free_Fonts.h` (`FSS9`, `FSSB12`, `FM18`, `FSB24`, `TT1`, etc.) and direct pointer support (`&FreeSans9pt7b`).
-  * Vector font scaling via `setTextSize(scale)` (e.g. 2x scale on 24pt produces ~68px tall hero telemetry numbers).
-  * Proportional kerning, accurate baseline and text measurement (`textWidth()`, `fontHeight()`), and text datum anchors (`setTextDatum`).
-  * Instant fallback to classic 5x7 fixed-pitch font via `setFreeFont(NULL)`.
-  * Seamless support across both the physical display (`tft`) and RAM buffers (`TFT_eSprite`).
-* **Full Off-Screen Sprite Engine (`TFT_eSprite`)**:
-  * 16-bit RGB565 full color, 8-bit RGB332 low RAM, and 4-bit 16-color indexed palette modes.
-  * Eliminates screen flickering with instant DMA/SPI buffer pushes.
-* **Universal XPT2046 Resistive Touch Engine**:
-  * Automatically handles both dedicated bit-bang pins (2.8") and shared HSPI bus arbitration (2.4", 3.2", 3.5", 4.0").
-  * Multi-stage calibration tool (`TouchCalibration`) with model-isolated NVS flash persistence and adjustable noise/jump filters.
-* **Standardized Landscape Orientation**:
-  * Standardized on **Rotation 3** across all library examples (USB port on left, MicroSD slot on top).
-* **Complete Example Suite**:
-  * `QuickStart`: Minimal hardware test boilerplate.
-  * `BasicTouchDemo`: Real-time crosshair coordinates and boundary diagnostics.
-  * `TouchCalibration`: 4-corner interactive calibration and NVS flash storage.
-  * `SpriteDemo`: High-performance 5-tab dashboard (`METER`, `WAVE`, `RGB/LDR`, `DRAW`, `LOGO`).
-  * `FreeFontDemo`: 5-page interactive typography showcase (families, sizes, scaling, datums, smooth sprite telemetry).
+* Universal Hardware Probing & Zero Configuration.
+* Adafruit GFX / FreeFonts Typography Engine (48 fonts).
+* Full Off-Screen Sprite Engine (TFT_eSprite).
+* Universal XPT2046 Resistive Touch Engine.
 
 ---
 
