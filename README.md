@@ -1,7 +1,7 @@
 # AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.2.1-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.1.1-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD-2.4%22%20%7C%202.8%22%20%7C%203.2%22%20%7C%203.5%22%20%7C%204.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
@@ -53,10 +53,6 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
   * **8-bit color** (RGB332 low memory)
   * **4-bit color** (16-color indexed palette: run full 240x240 analog gauges in only ~28 KB RAM!)
   * Supports transparent color keying and push-to-display / push-to-sprite.
-* 🚀 **Zero-Boilerplate LVGL v8.x & v9.x Support**:
-  * Built-in `AMK_CYD_LVGL` helper turns 70+ lines of confusing DMA buffer, display flushing, and touch driver setup into 1 single line (`lvgl.begin(display, touch);`).
-  * Features hardware DMA double-buffering in ESP32 internal SRAM for silky-smooth 60 FPS graphics with zero tearing.
-  * Bundles a pre-configured `lv_conf.h` so sketches compile immediately out of the box with zero manual configuration.
 * 👆 **Universal XPT2046 Resistive Touch Driver**:
   * Automatically switches between dedicated bit-banging and hardware HSPI SPI bus arbitration.
   * Handles native coordinate rotation and axis swapping transparently.
@@ -280,61 +276,6 @@ void loop() {}
 
 ---
 
-### 4. High-Performance UI with LVGL (Zero-Boilerplate)
-
-`AMK_CYD_Universal_TFT` includes a built-in hardware bridge for **LVGL (Light and Versatile Graphics Library)**, turning 70+ lines of confusing DMA buffer, display flushing, and touch driver setup into **1 single line**:
-
-#### 📥 Easy Setup (Supports LVGL v8.x & v9.x):
-1. In Arduino IDE, open **Tools** -> **Manage Libraries...** (or `Ctrl+Shift+I`).
-2. Search for **`lvgl`** and click **Install** (*Both LVGL v8.x and v9.x are fully supported!*).
-3. In your sketch, `#include <AMK_CYD_LVGL.h>` and call `lvgl.begin(display, touch);`!
-
-> [!NOTE]
-> **Pre-Configured `lv_conf.h` Included**: Standard LVGL on Arduino typically requires manually finding and copying `lv_conf.h`. `AMK_CYD_Universal_TFT` bundles an optimized, ready-to-use `lv_conf.h` directly inside its `src/` directory, so your sketch compiles immediately out of the box with zero configuration!
-
-```cpp
-#include <Arduino.h>
-#include <AMK_CYD_Universal_TFT.h>
-#include <AMK_CYD_LVGL.h> // Includes official LVGL automatically!
-
-AMK_CYD_display display;
-AMK_CYD_touch   touch;
-TFT_eSPI        tft;
-AMK_CYD_LVGL    lvgl;
-
-void setup() {
-  tft.init();
-  tft.setRotation(3); // Landscape (USB left, SD top)
-  tft.setBacklight(100);
-
-  touch.begin(display);
-  touch.setRotation(3);
-  touch.loadCalibration();
-
-  // 1-Line LVGL Initialization:
-  // Automatically allocates DMA draw buffers in internal SRAM,
-  // configures RGB565 byte-swapping, and maps touch pointers!
-  lvgl.begin(display, touch);
-
-  // Now create ANY official LVGL widget (buttons, sliders, gauges, charts):
-  lv_obj_t *btn = lv_btn_create(lv_scr_act());
-  lv_obj_center(btn);
-  lv_obj_t *lbl = lv_label_create(btn);
-  lv_label_set_text(lbl, "Hello CYD!");
-}
-
-void loop() {
-  lvgl.tick(); // Handles LVGL timers, animations, and touch events
-  delay(5);
-}
-```
-
-> [!TIP]
-> **Why keep LVGL in Library Manager?**  
-> Unlike display hardware drivers, LVGL is a 60+ MB operating system UI framework with hundreds of widgets and animations. Keeping it in the Library Manager prevents your project from becoming bloated, avoids duplicate symbol conflicts with other libraries, and lets you update LVGL directly whenever new upstream bug fixes are released!
-
----
-
 ## 🔤 Typography & Font Reference Guide
 
 `AMK_CYD_Universal_TFT` includes two typography engines to give you complete design flexibility:
@@ -449,7 +390,6 @@ In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled*
 |:---|:---|
 | **`QuickStart`** | Minimal boilerplate template showcasing hardware auto-detection, status logging, and a simple touch dot drawing loop. |
 | **`BasicTouchDemo`** | Full touch diagnostic canvas showing real-time `(X, Y)` touch coordinates, crosshair tracking, pressure values, and screen boundaries. |
-| **`LVGL_QuickStart`** | 1-line LVGL initialization boilerplate showcasing automated DMA buffer allocation, display flushing, and touch pointer mapping with interactive buttons and sliders. |
 | **`FreeFontDemo`** | Comprehensive typography showcase featuring 5 interactive pages: font families comparison, proportional point sizes, giant vector scaling (`setTextSize(2)`), accurate text datum alignment anchors, and smooth dynamic off-screen sprite telemetry. |
 | **`TouchCalibration`** | Interactive multi-stage calibration tool. Features 4-point crosshair calibration, pressure thresholding, jump filters, a live test drawing canvas, and persistent storage in NVS Flash. |
 | **`SpriteDemo`** | High-performance 5-tab UI dashboard: <br>• **`METER`**: Smooth 124x124 analog power gauge sprite + backlight brightness drag slider.<br>• **`WAVE`**: Real-time 270x110 oscilloscope waveform buffer with speed and pause controls.<br>• **`RGB/LDR`**: Onboard active-low RGB LED color tester and LDR photoresistor ambient light level bar.<br>• **`DRAW`**: Interactive touch drawing canvas with 7-color square palette selection and a Clear button.<br>• **`LOGO`**: AMK Studio splash screen with auto-detected board model, panel name, resolution, and RAM telemetry. |
@@ -457,20 +397,6 @@ In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled*
 ---
 
 ## 📝 Release History & Changelog
-
-### v1.2.1
-* **Hardware DMA Synchronization & Tear-Free Rendering**:
-  * Implemented true hardware DMA double-buffering in internal SRAM (`_draw_buf_mem1` and `_draw_buf_mem2`).
-  * Added explicit `_display->waitFlush()` hardware synchronization before `lv_display_flush_ready()`, completely eliminating horizontal white tearing bars and color inversion artifacts during high-speed rendering.
-  * Added explicit C++ pointer cast in `LVGL_QuickStart` event callback for strict compiler compatibility.
-
-### v1.2.0
-* **Zero-Boilerplate LVGL Integration Helper (`AMK_CYD_LVGL.h`)**:
-  * Added `AMK_CYD_LVGL` class supporting **both LVGL v8.x and v9.x** with runtime version detection (`LVGL_VERSION_MAJOR`).
-  * Automatically handles DMA draw buffer allocation in ESP32 internal SRAM, RGB565 byte-swapping (`setSwapBytes`), display flushing (`flushRegion`), and touch pointer mapping (`touch.read`) in 1 line: `lvgl.begin(display, touch);`.
-  * **Bundled `lv_conf.h`**: Ships with a pre-configured, optimized `lv_conf.h` so users don't have to manually create or copy configuration files.
-  * Preserves 100% backward compatibility with zero RAM/flash overhead for non-LVGL users.
-  * Added `LVGL_QuickStart` example.
 
 ### v1.1.1 (First Official Public Release)
 * **Universal Hardware Probing & Zero Configuration**:
