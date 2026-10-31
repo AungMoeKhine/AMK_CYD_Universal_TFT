@@ -1,7 +1,7 @@
 # AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.3.0-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.3.1-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD-2.4%22%20%7C%202.8%22%20%7C%203.2%22%20%7C%203.5%22%20%7C%204.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
@@ -61,6 +61,11 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
   * Design screens visually with drag-and-drop widgets (speedometers, switches, charts, sliders) and export directly to your sketch.
   * Launch full interactive UIs in 1 line (`ui_init();`) without writing complex driver glue code.
   * Pre-configured with enabled Montserrat fonts (10pt to 24pt) for seamless out-of-the-box compiling.
+* 🔘 **Full TFT_eSPI_Button Drop-In Compatibility**:
+  * Complete implementation of Bodmer's `TFT_eSPI_Button` class (`initButton`, `initButtonUL`, `drawButton`, `contains`, `press`, `justPressed`, `justReleased`).
+  * Existing TFT_eSPI sketches with on-screen touch keypads and buttons run immediately out of the box with zero code changes!
+* 💻 **Visual Studio & PlatformIO Ready**:
+  * Bundles official `library.json` manifest and safe include guards for clean compiling and IntelliSense in Visual Studio and VS Code PlatformIO.
 * 👆 **Universal XPT2046 Resistive Touch Driver**:
   * Automatically switches between dedicated bit-banging and hardware HSPI SPI bus arbitration.
   * Handles native coordinate rotation and axis swapping transparently.
@@ -523,6 +528,7 @@ In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled*
 |:---|:---|
 | **`QuickStart`** | Minimal boilerplate template showcasing hardware auto-detection, status logging, and a simple touch dot drawing loop. |
 | **`BasicTouchDemo`** | Full touch diagnostic canvas showing real-time `(X, Y)` touch coordinates, crosshair tracking, pressure values, and screen boundaries. |
+| **`ButtonDemo`** | Drop-in Bodmer `TFT_eSPI_Button` showcase. Features interactive touch buttons with press/release states, inverted click feedback, and hardware control (RGB LED & backlight toggle). |
 | **`VisualGUI_QuickStart`** | Full drag-and-drop visual GUI template compatible with SquareLine Studio and EEZ Studio. Features an interactive temperature arc dial, live backlight PWM slider, onboard RGB LED toggle switch, and button callbacks. |
 | **`LVGL_QuickStart`** | 1-line LVGL initialization boilerplate showcasing automated DMA buffer allocation, display flushing, and touch pointer mapping with interactive buttons and sliders. |
 | **`FreeFontDemo`** | Comprehensive typography showcase featuring 5 interactive pages: font families comparison, proportional point sizes, giant vector scaling (`setTextSize(2)`), accurate text datum alignment anchors, and smooth dynamic off-screen sprite telemetry. |
@@ -532,6 +538,15 @@ In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled*
 ---
 
 ## 📝 Release History & Changelog
+
+### v1.3.1
+* **Full `TFT_eSPI_Button` Drop-In Compatibility**:
+  * Added complete standalone implementation of Bodmer's `TFT_eSPI_Button` class (`initButton`, `initButtonUL`, `drawButton`, `contains`, `press`, `isPressed`, `justPressed`, `justReleased`, `setLabelDatum`).
+  * Existing sketches and community apps that use on-screen touch keypads and buttons now work seamlessly with zero modifications!
+  * Added new **`ButtonDemo`** example sketch.
+* **Visual Studio & PlatformIO Support**:
+  * Added official `library.json` manifest for native PlatformIO dependency management and include path resolution.
+  * Added safe `#if __has_include(<lvgl.h>)` guards in `AMK_CYD_LVGL.h` to prevent compiler errors and red squiggles in Visual Studio / PlatformIO projects when LVGL is not installed.
 
 ### v1.3.0
 * **Visual Drag-and-Drop GUI Support (SquareLine Studio & EEZ Studio)**:

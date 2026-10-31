@@ -13,8 +13,18 @@
 
 #include <Arduino.h>
 #include "AMK_CYD_Universal_TFT.h"
-#include <lvgl.h>
 
+#if __has_include(<lvgl.h>)
+#include <lvgl.h>
+#define AMK_CYD_HAS_LVGL 1
+#elif __has_include("lvgl.h")
+#include "lvgl.h"
+#define AMK_CYD_HAS_LVGL 1
+#else
+#define AMK_CYD_HAS_LVGL 0
+#endif
+
+#if AMK_CYD_HAS_LVGL
 class AMK_CYD_LVGL {
 private:
     AMK_CYD_display* _display = nullptr;
@@ -179,3 +189,15 @@ public:
         lv_timer_handler();
     }
 };
+#else
+// Safe fallback stub for Visual Studio & PlatformIO when LVGL is not installed
+class AMK_CYD_LVGL {
+public:
+    AMK_CYD_LVGL() = default;
+    bool begin(AMK_CYD_display&, AMK_CYD_touch&) {
+        Serial.println("[AMK_CYD_LVGL] ERROR: lvgl.h not found! Please install 'lvgl' in Library Manager or platformio.ini.");
+        return false;
+    }
+    void tick() {}
+};
+#endif

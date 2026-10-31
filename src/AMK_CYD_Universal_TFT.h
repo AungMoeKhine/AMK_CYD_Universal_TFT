@@ -1717,3 +1717,137 @@ public:
         }
     }
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TFT_eSPI_Button - Drop-in UI button helper compatible with Bodmer's TFT_eSPI
+// ═══════════════════════════════════════════════════════════════════════════════
+class TFT_eSPI_Button {
+ public:
+  TFT_eSPI_Button(void) {
+    _gfx = nullptr;
+    _x1 = 0;
+    _y1 = 0;
+    _w = 0;
+    _h = 0;
+    _outlinecolor = 0;
+    _fillcolor = 0;
+    _textcolor = 0;
+    _textsize = 1;
+    _xd = 0;
+    _yd = 0;
+    _datum = MC_DATUM;
+    currstate = false;
+    laststate = false;
+    _label[0] = '\0';
+  }
+
+  // Classic initButton() uses center (x, y) & size (w, h)
+  void initButton(TFT_eSPI *gfx, int16_t x, int16_t y,
+                  uint16_t w, uint16_t h, uint16_t outline, uint16_t fill,
+                  uint16_t textcolor, char *label, uint8_t textsize) {
+    _x1           = x - (w / 2);
+    _y1           = y - (h / 2);
+    _w            = w;
+    _h            = h;
+    _outlinecolor = outline;
+    _fillcolor    = fill;
+    _textcolor    = textcolor;
+    _textsize     = textsize;
+    _gfx          = gfx;
+    strncpy(_label, label, 9);
+    _label[9] = '\0';
+  }
+
+  // String version of initButton()
+  void initButton(TFT_eSPI *gfx, int16_t x, int16_t y,
+                  uint16_t w, uint16_t h, uint16_t outline, uint16_t fill,
+                  uint16_t textcolor, const String &label, uint8_t textsize) {
+    initButton(gfx, x, y, w, h, outline, fill, textcolor, (char*)label.c_str(), textsize);
+  }
+
+  // initButtonUL() uses upper-left corner (x1, y1) & size (w, h)
+  void initButtonUL(TFT_eSPI *gfx, int16_t x1, int16_t y1,
+                    uint16_t w, uint16_t h, uint16_t outline, uint16_t fill,
+                    uint16_t textcolor, char *label, uint8_t textsize) {
+    _x1           = x1;
+    _y1           = y1;
+    _w            = w;
+    _h            = h;
+    _outlinecolor = outline;
+    _fillcolor    = fill;
+    _textcolor    = textcolor;
+    _textsize     = textsize;
+    _gfx          = gfx;
+    strncpy(_label, label, 9);
+    _label[9] = '\0';
+  }
+
+  // String version of initButtonUL()
+  void initButtonUL(TFT_eSPI *gfx, int16_t x1, int16_t y1,
+                    uint16_t w, uint16_t h, uint16_t outline, uint16_t fill,
+                    uint16_t textcolor, const String &label, uint8_t textsize) {
+    initButtonUL(gfx, x1, y1, w, h, outline, fill, textcolor, (char*)label.c_str(), textsize);
+  }
+
+  void setLabelDatum(int16_t x_delta, int16_t y_delta, uint8_t datum = MC_DATUM) {
+    _xd = x_delta;
+    _yd = y_delta;
+    _datum = datum;
+  }
+
+  void drawButton(bool inverted = false, String long_name = "") {
+    if (!_gfx) return;
+    uint16_t fill, outline, text;
+
+    if (!inverted) {
+      fill    = _fillcolor;
+      outline = _outlinecolor;
+      text    = _textcolor;
+    } else {
+      fill    = _textcolor;
+      outline = _outlinecolor;
+      text    = _fillcolor;
+    }
+
+    uint8_t r = min(_w, _h) / 4;
+    _gfx->fillRoundRect(_x1, _y1, _w, _h, r, fill);
+    _gfx->drawRoundRect(_x1, _y1, _w, _h, r, outline);
+
+    _gfx->setTextColor(text, fill);
+    _gfx->setTextSize(_textsize);
+    _gfx->setTextDatum(_datum);
+
+    int16_t xc = _x1 + (_w / 2) + _xd;
+    int16_t yc = _y1 + (_h / 2) + _yd;
+
+    if (long_name.length() > 0) {
+      _gfx->drawString(long_name, xc, yc);
+    } else {
+      _gfx->drawString(_label, xc, yc);
+    }
+  }
+
+  bool contains(int16_t x, int16_t y) {
+    return ((x >= _x1) && (x < (_x1 + _w)) && (y >= _y1) && (y < (_y1 + _h)));
+  }
+
+  void press(bool p) {
+    laststate = currstate;
+    currstate = p;
+  }
+
+  bool isPressed() { return currstate; }
+  bool justPressed() { return (currstate && !laststate); }
+  bool justReleased() { return (!currstate && laststate); }
+
+ private:
+  TFT_eSPI *_gfx;
+  int16_t  _x1, _y1; // Coordinates of top-left corner
+  uint16_t _w, _h;
+  uint8_t  _textsize;
+  uint16_t _outlinecolor, _fillcolor, _textcolor;
+  char     _label[10];
+  int16_t  _xd, _yd;
+  uint8_t  _datum;
+  bool     currstate, laststate;
+};
