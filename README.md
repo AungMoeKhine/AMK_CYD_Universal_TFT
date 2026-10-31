@@ -64,6 +64,10 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 * 🔘 **Full TFT_eSPI_Button Drop-In Compatibility**:
   * Complete implementation of Bodmer's `TFT_eSPI_Button` class (`initButton`, `initButtonUL`, `drawButton`, `contains`, `press`, `justPressed`, `justReleased`).
   * Existing TFT_eSPI sketches with on-screen touch keypads and buttons run immediately out of the box with zero code changes!
+* 🌈 **Smooth Linear Color Gradients & Alpha Blending**:
+  * Built-in `fillRectVGradient()` (vertical) and `fillRectHGradient()` (horizontal) for modern UI cards, headers, and gauge backgrounds.
+  * Fast 16-bit RGB565 `alphaBlend(alpha, fg_color, bg_color)` for smooth overlays and transparencies.
+  * Fully supported across both the direct screen and `TFT_eSprite` off-screen buffers.
 * 💻 **Visual Studio & PlatformIO Ready**:
   * Bundles official `library.json` manifest and safe include guards for clean compiling and IntelliSense in Visual Studio and VS Code PlatformIO.
 * 👆 **Universal XPT2046 Resistive Touch Driver**:
@@ -529,6 +533,7 @@ In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled*
 | **`QuickStart`** | Minimal boilerplate template showcasing hardware auto-detection, status logging, and a simple touch dot drawing loop. |
 | **`BasicTouchDemo`** | Full touch diagnostic canvas showing real-time `(X, Y)` touch coordinates, crosshair tracking, pressure values, and screen boundaries. |
 | **`ButtonDemo`** | Drop-in Bodmer `TFT_eSPI_Button` showcase. Features interactive touch buttons with press/release states, inverted click feedback, and hardware control (RGB LED & backlight toggle). |
+| **`GradientDemo`** | Showcase of linear color gradients (`fillRectVGradient`, `fillRectHGradient`) and alpha blending (`alphaBlend`). Features a sleek multi-card dashboard, frosted-glass HUD strip, theme palette cycling via touch, and onboard RGB LED sync. |
 | **`VisualGUI_QuickStart`** | Full drag-and-drop visual GUI template compatible with SquareLine Studio and EEZ Studio. Features an interactive temperature arc dial, live backlight PWM slider, onboard RGB LED toggle switch, and button callbacks. |
 | **`LVGL_QuickStart`** | 1-line LVGL initialization boilerplate showcasing automated DMA buffer allocation, display flushing, and touch pointer mapping with interactive buttons and sliders. |
 | **`FreeFontDemo`** | Comprehensive typography showcase featuring 5 interactive pages: font families comparison, proportional point sizes, giant vector scaling (`setTextSize(2)`), accurate text datum alignment anchors, and smooth dynamic off-screen sprite telemetry. |
@@ -538,6 +543,23 @@ In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled*
 ---
 
 ## 📝 Release History & Changelog
+
+### v1.4.0
+* **Linear Color Gradients & Advanced Effects**:
+  * Added `fillRectVGradient(x, y, w, h, color1, color2)`: Fast vertical linear color gradient rendering.
+  * Added `fillRectHGradient(x, y, w, h, color1, color2)`: Fast horizontal linear color gradient rendering.
+  * Gradients are fully supported on both the direct screen and inside `TFT_eSprite` off-screen buffers.
+  * Added `alphaBlend(alpha, fg_color, bg_color)`: High-speed 16-bit RGB565 alpha blending.
+  * Added `color16to24(c)`: 16-bit to 24-bit RGB expansion helper.
+* **`TFT_eSPI_Button` Datum & Padding State Preservation**:
+  * Enhanced `drawButton()` to record and restore `getTextDatum()` and `getTextPadding()` upon completion, preventing interference with surrounding sketch text alignment.
+* **Display State Getters**:
+  * Added `getTextDatum()` and `getTextSize()` getters to `TFT_eSPI`.
+* **New `GradientDemo` Example Sketch**:
+  * Features a modern 3-card telemetry UI with linear horizontal & vertical gradients, frosted-glass alpha-blended HUD, interactive theme palette cycling via touch, and onboard RGB LED synchronization.
+* **Hardware-Calibrated `ButtonDemo`**:
+  * Calibrated header and subtitle font sizes for physical 2.8" and 2.4" CYD screens, eliminating edge overflow.
+  * Re-architected status card drawing with full-box clearing to guarantee zero ghosting or residual characters.
 
 ### v1.3.1
 * **Full `TFT_eSPI_Button` Drop-In Compatibility**:

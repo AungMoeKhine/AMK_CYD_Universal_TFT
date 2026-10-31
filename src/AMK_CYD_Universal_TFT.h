@@ -773,6 +773,8 @@ public:
     void setTextSize(uint8_t s)                  { _textSize = (s > 0) ? s : 1; }
     void setTextFont(uint8_t f)                  { _gfxFont = nullptr; if (f > 0) _textSize = (f > 8) ? 8 : f; }
     void setTextDatum(uint8_t d)                 { _textDatum = d; }
+    uint8_t getTextDatum() const                 { return _textDatum; }
+    uint8_t getTextSize() const                  { return _textSize; }
     void setTextWrap(bool wrap)                  { _textWrap = wrap; }
     void setTextWrap(bool wrapX, bool wrapY)     { _textWrap = wrapX; (void)wrapY; }
     void setTextPadding(uint16_t padding)        { _textPadding = padding; }
@@ -969,12 +971,18 @@ public:
     int16_t getPivotX() const           { return _pivotX; }
     int16_t getPivotY() const           { return _pivotY; }
 
-    // Color conversion
+    // Color conversion & blending
     static inline uint16_t color565(uint8_t r, uint8_t g, uint8_t b) {
         return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
     }
     static inline uint16_t color24to16(uint32_t c) {
         return color565((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF);
+    }
+    static inline uint32_t color16to24(uint16_t c) {
+        uint8_t r = (c >> 8) & 0xF8; r |= (r >> 5);
+        uint8_t g = (c >> 3) & 0xFC; g |= (g >> 6);
+        uint8_t b = (c << 3) & 0xF8; b |= (b >> 5);
+        return ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
     }
     static inline uint8_t color16to8(uint16_t c) {
         return (uint8_t)(((c & 0xE000) >> 8) | ((c & 0x0700) >> 6) | ((c & 0x0018) >> 3));
@@ -985,6 +993,34 @@ public:
         uint16_t g6 = (g << 3) | g;
         uint16_t b5 = (b << 3) | (b << 1) | (b >> 1);
         return (r5 << 11) | (g6 << 5) | b5;
+    }
+    static inline uint16_t alphaBlend(uint8_t alpha, uint16_t fgc, uint16_t bgc) {
+        uint32_t rxb = bgc & 0xF81F;
+        rxb += ((fgc & 0xF81F) - rxb) * (alpha >> 2) >> 6;
+        uint32_t xgx = bgc & 0x07E0;
+        xgx += ((fgc & 0x07E0) - xgx) * alpha >> 8;
+        return (uint16_t)((rxb & 0xF81F) | (xgx & 0x07E0));
+    }
+
+    // Gradients
+    void fillRectVGradient(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color1, uint16_t color2) {
+        if (w <= 0 || h <= 0) return;
+        float delta = -255.0f / (float)h;
+        float alpha = 255.0f;
+        while (h--) {
+            drawFastHLine(x, y++, w, alphaBlend((uint8_t)alpha, color1, color2));
+            alpha += delta;
+        }
+    }
+
+    void fillRectHGradient(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color1, uint16_t color2) {
+        if (w <= 0 || h <= 0) return;
+        float delta = -255.0f / (float)w;
+        float alpha = 255.0f;
+        while (w--) {
+            drawFastVLine(x++, y, h, alphaBlend((uint8_t)alpha, color1, color2));
+            alpha += delta;
+        }
     }
 
 #ifndef AMK_CYD_NO_GLOBAL_TOUCH
@@ -1813,9 +1849,13 @@ class TFT_eSPI_Button {
     _gfx->fillRoundRect(_x1, _y1, _w, _h, r, fill);
     _gfx->drawRoundRect(_x1, _y1, _w, _h, r, outline);
 
+    uint8_t tempdatum = _gfx->getTextDatum();
+    uint16_t temppad  = _gfx->getTextPadding();
+
     _gfx->setTextColor(text, fill);
     _gfx->setTextSize(_textsize);
     _gfx->setTextDatum(_datum);
+    _gfx->setTextPadding(0);
 
     int16_t xc = _x1 + (_w / 2) + _xd;
     int16_t yc = _y1 + (_h / 2) + _yd;
@@ -1825,6 +1865,9 @@ class TFT_eSPI_Button {
     } else {
       _gfx->drawString(_label, xc, yc);
     }
+
+    _gfx->setTextDatum(tempdatum);
+    _gfx->setTextPadding(temppad);
   }
 
   bool contains(int16_t x, int16_t y) {

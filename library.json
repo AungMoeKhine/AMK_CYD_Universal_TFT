@@ -1,7 +1,7 @@
 {
   "name": "AMK_CYD_Universal_TFT",
-  "version": "1.3.1",
-  "description": "Universal standalone TFT, touch, sprite, and visual GUI driver with TFT_eSPI_Button support for all ESP32 Cheap Yellow Display (CYD) resistive boards.",
+  "version": "1.4.0",
+  "description": "Universal standalone TFT, touch, sprite, gradients, and visual GUI driver with TFT_eSPI_Button support for all ESP32 Cheap Yellow Display (CYD) resistive boards.",
   "keywords": [
     "display",
     "cyd",
@@ -14,6 +14,7 @@
     "ili9341",
     "st7789",
     "st7796",
+    "gradients",
     "lvgl",
     "squareline-studio",
     "eez-studio"
