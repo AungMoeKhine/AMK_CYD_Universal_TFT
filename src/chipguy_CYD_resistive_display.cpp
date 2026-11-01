@@ -4,6 +4,10 @@
  * See chipguy_CYD_resistive_display.h for the wiring and usage overview.
  */
 
+#include <Arduino.h>
+
+#if !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(BOARD_ESP32_S3_RGB)
+
 #include "chipguy_CYD_resistive_display.h"
 #include <driver/gpio.h>
 #include <esp_heap_caps.h>
@@ -700,3 +704,5 @@ bool chipguy_CYD_resistive_display::_needsInversion() const {
     return _panel == CYDR_PANEL_ST7789 && _board == CYDR_BOARD_SHARED_TOUCH
         && _model != CYDR_MODEL_024;
 }
+
+#endif // !CONFIG_IDF_TARGET_ESP32S3

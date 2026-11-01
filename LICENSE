@@ -43,3 +43,8 @@ following projects under their respective permissive open-source licenses:
    Redistribution and use in source and binary forms, with or without modification,
    are permitted provided that the copyright notices, conditions, and disclaimers
    are retained as specified in the original BSD license.
+
+4. gt911-arduino
+   Copyright (c) TAMC (https://github.com/tamctec/gt911-arduino)
+   License: Apache License, Version 2.0
+   Provides capacitive multi-touch register protocol and coordinate decoding.

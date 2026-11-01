@@ -44,6 +44,7 @@ static constexpr bool cydr_fqbnHasOption(const char *s, const char *opt) {
     }
     return false;
 }
+#if !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(BOARD_ESP32_S3_TOUCH_7)
 #ifdef ARDUINO_FQBN
 static_assert(!cydr_fqbnHasOption(ARDUINO_FQBN, "FlashSize=8M") &&
               !cydr_fqbnHasOption(ARDUINO_FQBN, "FlashSize=16M") &&
@@ -54,6 +55,7 @@ static_assert(!cydr_fqbnHasOption(ARDUINO_FQBN, "PSRAM=enabled"),
 #endif
 #ifdef BOARD_HAS_PSRAM
 #error "BOARD_HAS_PSRAM is defined: this board has no PSRAM. Select Tools > PSRAM > Disabled."
+#endif
 #endif
 
 // SPI host the display runs on.  Using SPI2_HOST (HSPI) ensures the display

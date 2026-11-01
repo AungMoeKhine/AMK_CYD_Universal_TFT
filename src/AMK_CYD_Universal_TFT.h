@@ -1,23 +1,60 @@
 #pragma once
 // ═══════════════════════════════════════════════════════════════════════════════
 // AMK_CYD_Universal_TFT.h - Universal standalone TFT, Touch & Sprite driver
-//                          for all ESP32 Cheap Yellow Display (CYD) resistive boards
+//                          for ESP32 CYD resistive boards (2.4" to 4.0")
+//                          and ESP32-S3 Parallel RGB capacitive boards (4.3", 5.0", 7.0").
 //
 // Usage in sketch:
 //     #include <AMK_CYD_Universal_TFT.h>
 //
-// The sketch must declare these globals:
-//     chipguy_CYD_resistive_display  display;
-//     chipguy_CYD_resistive_touch    touch;
-//     TFT_eSPI                       tft;
+// Cross-platform globals (works seamlessly on CYD and S3 RGB):
+//     AMK_display  display;
+//     AMK_touch    touch;
+//     TFT_eSPI     tft;
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #include <Arduino.h>
 #include <SPI.h>
 #include <math.h>
 #include <algorithm>
-#include "chipguy_CYD_resistive_display.h"
-#include "chipguy_CYD_resistive_touch.h"
+
+#if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(BOARD_ESP32_S3_RGB) || defined(BOARD_ESP32_S3_TOUCH_7) || defined(ARDUINO_WAVESHARE_ESP32_S3_TOUCH_LCD_7)
+  #define AMK_BACKEND_ESP32_S3 1
+  #include "AMK_S3_RGB_Board.h"
+  #include "chipguy_S3_RGB_display.h"
+  #include "chipguy_S3_capacitive_touch.h"
+
+  // ── Generalized Naming for ESP32-S3 RGB Displays & Capacitive Touch ──────────
+  // Covers 4.3", 5.0", 7.0" 800x480 ST7262 RGB panels + GT911 touch
+  using chipguy_S3_RGB_display  = ::chipguy_S3_RGB_display;
+  using AMK_S3_RGB_display      = chipguy_S3_RGB_display;
+  using AMK_S3_display          = chipguy_S3_RGB_display;
+  using ESP32S3_RGB_display     = chipguy_S3_RGB_display;
+  using ESP32S3_Touch_LCD_7     = chipguy_S3_RGB_display;
+
+  using chipguy_S3_capacitive_touch = ::chipguy_S3_capacitive_touch;
+  using AMK_S3_touch            = chipguy_S3_capacitive_touch;
+  using AMK_S3_Capacitive_touch = chipguy_S3_capacitive_touch;
+  using ESP32S3_Touch           = chipguy_S3_capacitive_touch;
+  using ESP32S3_Touch_LCD_7_Touch = chipguy_S3_capacitive_touch;
+
+  // Universal Cross-Platform Aliases (write once, run on CYD and S3 RGB)
+  using AMK_CYD_display         = AMK_S3_RGB_display;
+  using AMK_CYD_touch           = AMK_S3_touch;
+  using AMK_display             = AMK_S3_RGB_display;
+  using AMK_touch               = AMK_S3_touch;
+
+#else
+  #define AMK_BACKEND_ESP32_CYD 1
+  #include "chipguy_CYD_resistive_display.h"
+  #include "chipguy_CYD_resistive_touch.h"
+
+  // ─── Type Aliases for Backward & Universal Compatibility ──────────────────────
+  using AMK_CYD_display = chipguy_CYD_resistive_display;
+  using AMK_CYD_touch   = chipguy_CYD_resistive_touch;
+  using AMK_display     = chipguy_CYD_resistive_display;
+  using AMK_touch       = chipguy_CYD_resistive_touch;
+#endif
 
 #ifndef pgm_read_ptr
 #define pgm_read_ptr(addr) (*(const void **)(addr))
@@ -29,10 +66,6 @@
 
 #include "Fonts/GFXFF/gfxfont.h"
 #include "Free_Fonts.h"
-
-// ─── Type Aliases for Backward & Universal Compatibility ──────────────────────
-using AMK_CYD_display = chipguy_CYD_resistive_display;
-using AMK_CYD_touch   = chipguy_CYD_resistive_touch;
 
 // ─── Color constants (RGB565) ────────────────────────────────────────────────
 #ifndef TFT_BLACK
@@ -184,9 +217,16 @@ static const uint8_t _amk_font5x7[] PROGMEM = {
 //  The sketch provides the display and touch objects. We reference them via
 //  extern so that tft.init() and touch.begin(display) use the SAME physical object.
 // ═══════════════════════════════════════════════════════════════════════════════
+#if defined(AMK_BACKEND_ESP32_S3)
+extern AMK_S3_RGB_display display;
+#ifndef AMK_CYD_NO_GLOBAL_TOUCH
+extern AMK_S3_touch       touch;
+#endif
+#else
 extern chipguy_CYD_resistive_display display;
 #ifndef AMK_CYD_NO_GLOBAL_TOUCH
 extern chipguy_CYD_resistive_touch   touch;
+#endif
 #endif
 
 class TFT_eSprite;
@@ -212,14 +252,21 @@ protected:
     int8_t   _glyph_bb    = 0;
 
     virtual void _pixel(int32_t x, int32_t y, uint16_t color) {
+#if defined(AMK_BACKEND_ESP32_S3)
+        display.drawPixel(x, y, color);
+#else
         if (x < 0 || y < 0 || x >= display.width() || y >= display.height()) return;
         alignas(4) static uint16_t _px;
         display.waitFlush();
         _px = __builtin_bswap16(color);
         display.flushRegion(x, y, x, y, &_px);
+#endif
     }
 
     virtual void _fill(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t color) {
+#if defined(AMK_BACKEND_ESP32_S3)
+        display.fillRect(x, y, w, h, color);
+#else
         if (w <= 0 || h <= 0) return;
         int16_t sw = display.width(), sh = display.height();
         if (x < 0) { w += x; x = 0; }
@@ -228,7 +275,7 @@ protected:
         if (y + h > sh) h = sh - y;
         if (w <= 0 || h <= 0) return;
 
-        alignas(4) static uint16_t _lineBuf[480];
+        alignas(4) static uint16_t _lineBuf[800];
         uint16_t be = __builtin_bswap16(color);
         for (int32_t row = 0; row < h; row++) {
             display.waitFlush();
@@ -236,6 +283,7 @@ protected:
             display.flushRegion(x, y + row, x + w - 1, y + row, _lineBuf);
         }
         display.waitFlush();
+#endif
     }
 
     virtual void _drawChar(int32_t x, int32_t y, unsigned char c,
@@ -411,7 +459,13 @@ public:
     virtual int16_t width()  const    { return display.width();    }
     virtual int16_t height() const    { return display.height();   }
 
-    virtual void fillScreen(uint16_t color) { _fill(0, 0, width(), height(), color); }
+    virtual void fillScreen(uint16_t color) {
+#if defined(AMK_BACKEND_ESP32_S3)
+        display.fillScreen(color);
+#else
+        _fill(0, 0, width(), height(), color);
+#endif
+    }
     void invertDisplay(bool invert)   { display.invertDisplay(invert); }
 
     virtual uint16_t readPixel(int32_t x, int32_t y) const { (void)x; (void)y; return 0; }
@@ -699,10 +753,30 @@ public:
     // Image rendering
     virtual void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t *data) {
         if (!data || w <= 0 || h <= 0) return;
+#if defined(AMK_BACKEND_ESP32_S3)
+        if (_swapBytes) {
+            int16_t sw = width(), sh = height();
+            if (x >= sw || y >= sh || x + w <= 0 || y + h <= 0) return;
+            alignas(4) static uint16_t _imgLineBuf[800];
+            for (int32_t row = 0; row < h; row++) {
+                int32_t curY = y + row;
+                if (curY < 0 || curY >= sh) continue;
+                int32_t srcStart = 0, dstX = x, curW = w;
+                if (dstX < 0) { srcStart = -dstX; curW += dstX; dstX = 0; }
+                if (dstX + curW > sw) curW = sw - dstX;
+                if (curW <= 0) continue;
+                const uint16_t *srcLine = data + (row * w) + srcStart;
+                for (int32_t i = 0; i < curW; i++) _imgLineBuf[i] = __builtin_bswap16(srcLine[i]);
+                display.pushImage(dstX, curY, curW, 1, _imgLineBuf);
+            }
+        } else {
+            display.pushImage(x, y, w, h, data);
+        }
+#else
         int16_t sw = width(), sh = height();
         if (x >= sw || y >= sh || x + w <= 0 || y + h <= 0) return;
 
-        alignas(4) static uint16_t _imgLineBuf[480];
+        alignas(4) static uint16_t _imgLineBuf[800];
         for (int32_t row = 0; row < h; row++) {
             int32_t curY = y + row;
             if (curY < 0 || curY >= sh) continue;
@@ -726,6 +800,7 @@ public:
             display.flushRegion(dstX, curY, dstX + curW - 1, curY, _imgLineBuf);
         }
         display.waitFlush();
+#endif
     }
 
     virtual void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data) {
@@ -1021,6 +1096,13 @@ public:
             drawFastVLine(x++, y, h, alphaBlend((uint8_t)alpha, color1, color2));
             alpha += delta;
         }
+    }
+
+    void drawGradientV(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color1, uint16_t color2) {
+        fillRectVGradient(x, y, w, h, color1, color2);
+    }
+    void drawGradientH(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color1, uint16_t color2) {
+        fillRectHGradient(x, y, w, h, color1, color2);
     }
 
 #ifndef AMK_CYD_NO_GLOBAL_TOUCH
@@ -1459,10 +1541,16 @@ public:
             pushToSprite((TFT_eSprite*)_tft, x, y);
             return;
         }
+#if defined(AMK_BACKEND_ESP32_S3)
+        if (_bpp == 16) {
+            display.pushImage(x, y, _w, _h, (const uint16_t*)_buffer);
+            return;
+        }
+#endif
         int16_t sw = display.width(), sh = display.height();
         if (x >= sw || y >= sh || x + _w <= 0 || y + _h <= 0) return;
 
-        alignas(4) static uint16_t _sprLineBuf[480];
+        alignas(4) static uint16_t _sprLineBuf[800];
         for (int32_t row = 0; row < _h; row++) {
             int32_t curY = y + row;
             if (curY < 0 || curY >= sh) continue;
@@ -1511,7 +1599,7 @@ public:
         int16_t sw = display.width(), sh = display.height();
         if (x >= sw || y >= sh || x + _w <= 0 || y + _h <= 0) return;
 
-        alignas(4) static uint16_t _transpLineBuf[480];
+        alignas(4) static uint16_t _transpLineBuf[800];
         for (int32_t row = 0; row < _h; row++) {
             int32_t curY = y + row;
             if (curY < 0 || curY >= sh) continue;
@@ -1555,7 +1643,7 @@ public:
         if (sy + sh > _h)  sh = _h - sy;
         if (sw <= 0 || sh <= 0) return false;
 
-        alignas(4) static uint16_t _subLineBuf[480];
+        alignas(4) static uint16_t _subLineBuf[800];
         int16_t dispW = display.width(), dispH = display.height();
 
         for (int32_t row = 0; row < sh; row++) {

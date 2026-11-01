@@ -1,14 +1,14 @@
 # AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.3.1-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.5.0-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
-[![Hardware](https://img.shields.io/badge/CYD-2.4%22%20%7C%202.8%22%20%7C%203.2%22%20%7C%203.5%22%20%7C%204.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
+[![Hardware](https://img.shields.io/badge/CYD%20%2B%20S3%20RGB-2.4%22%20to%207.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
 
-**Universal standalone TFT, XPT2046 resistive touch, and off-screen sprite driver for the entire ESP32 Cheap Yellow Display (CYD) family.**
+**Universal standalone TFT, touch, sprite, and visual GUI driver for the entire ESP32 Cheap Yellow Display (CYD) family and ESP32-S3 Parallel RGB displays.**
 
-Zero configuration required. No editing User_Setup.h, no hunting down obscure pinouts, and no recompiling for different screen variants. Works out of the box on **2.4", 2.8", 3.2", 3.5", and 4.0"** CYD resistive touch boards with runtime auto-detection.
+Zero configuration required. No editing User_Setup.h, no hunting down obscure pinouts, and no recompiling for different screen variants. Works out of the box on **2.4", 2.8", 3.2", 3.5", and 4.0"** CYD resistive touch boards with runtime auto-detection, as well as **4.3", 5.0", and 7.0"** ESP32-S3 parallel RGB displays with GT911 capacitive multi-touch.
 
 ---
 
@@ -81,12 +81,23 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 * 🛡️ **Clean SPI Separation (SD Card Friendly)**:
   * Display and touch run on **SPI2 (HSPI)**.
   * Leaves **SPI3 (VSPI: GPIO 18, 19, 23, 5)** completely open for high-speed micro-SD card operations without bus conflict!
+* 🖥️ **ESP32-S3 Parallel RGB & Capacitive Touch Support**:
+  * Direct 16-bit parallel RGB interface with ST7262 controller for 800x480 resolution (4.3", 5.0", and 7.0" screens).
+  * Built-in CH422G I2C I/O expander driver (controls backlight PWM, LCD reset, touch reset, LCD power, SD CS).
+  * Smooth capacitive multi-touch via Goodix GT911 driver.
+* 🌐 **Universal Cross-Platform Abstraction**:
+  * Cross-platform aliases `AMK_display` and `AMK_touch` automatically resolve to CYD SPI on standard ESP32, and parallel RGB + capacitive touch on ESP32-S3!
+  * Generalized classes: `AMK_S3_RGB_display`, `AMK_S3_touch`, and `AMK_S3_Board`.
+  * Complete backward compatibility for existing code (`AMK_CYD_display`, `AMK_CYD_touch`, `ESP32S3_Touch_LCD_7_...`).
 * 🛑 **Compile-Time Failsafe Protection**:
-  * Asserts compile-time warnings if PSRAM is accidentally enabled or flash is set > 4 MB, preventing boot loops and GPIO16/17 pin conflicts.
+  * For CYD boards: asserts compile-time warnings if PSRAM is accidentally enabled or flash is set > 4 MB, preventing boot loops and GPIO16/17 pin conflicts.
+  * For ESP32-S3 boards: validates PSRAM availability required for large 800x480 RGB framebuffers.
 
 ---
 
 ## 📋 Supported Hardware Matrix
+
+### 1. ESP32 Cheap Yellow Display (CYD) Series (SPI + Resistive Touch)
 
 | CYD Model | Screen Size | Resolution | Controller | Touch Bus | Backlight Pin | Red LED Pin |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -99,12 +110,20 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 | **ESP32-32E 3.5"** | 3.5" | 320x480 | ST7796 | Shared HSPI Bus | GPIO 27 | GPIO 22 |
 | **ESP32-32E 4.0"** | 4.0" | 320x480 | ST7796 | Shared HSPI Bus | GPIO 27 | GPIO 22 |
 
+### 2. ESP32-S3 Parallel RGB Series (16-bit RGB + GT911 Capacitive Touch)
+
+| Board Model | Screen Size | Resolution | Interface | Driver IC | Touch Controller | IO Expander |
+|:---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Waveshare ESP32-S3-Touch-LCD-7** | 7.0" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C) |
+| **Waveshare ESP32-S3-Touch-LCD-5** | 5.0" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C) |
+| **Waveshare ESP32-S3-Touch-LCD-4.3** | 4.3" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C) |
+| **Sunton ESP32-8048S070 / S050 / S043** | 4.3" - 7.0" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | Supported |
+
 ---
 
 ## 🛠️ Recommended Arduino IDE Settings
 
-When compiling for any CYD board, use the following settings in the Arduino IDE:
-
+### For ESP32 CYD Boards:
 * **Board**: ESP32 Dev Module
 * **Upload Speed**: 921600
 * **CPU Frequency**: 240MHz (WiFi/BT)
@@ -113,6 +132,15 @@ When compiling for any CYD board, use the following settings in the Arduino IDE:
 * **Flash Size**: 4MB (32Mb) *(Do NOT select 8MB or 16MB)*
 * **Partition Scheme**: Default 4MB with spiffs or Huge APP (3MB No OTA/1MB SPIFFS)
 * **PSRAM**: Disabled *(Do NOT enable PSRAM; CYD boards do not have external PSRAM, and enabling it locks up GPIO16 & GPIO17)*
+
+### For ESP32-S3 Parallel RGB Boards:
+* **Board**: `ESP32S3 Dev Module` or `Waveshare ESP32-S3-Touch-LCD-7`
+* **Upload Speed**: 921600
+* **USB CDC On Boot**: Enabled *(Required for Serial output)*
+* **CPU Frequency**: 240MHz
+* **Flash Size**: 16MB (or board specific)
+* **Partition Scheme**: 16MB Flash (3MB APP/9.9MB FATFS) or Huge APP
+* **PSRAM**: OPI PSRAM (or Enabled) *(Mandatory: RGB framebuffers require PSRAM)*
 
 ---
 
@@ -160,21 +188,21 @@ lib_deps =
 
 ## 💻 Quick Start Examples
 
-### 1. Basic Display & Touch
+### 1. Cross-Platform Display & Touch (Works on CYD and ESP32-S3!)
 
 ```cpp
 #include <Arduino.h>
 #include <AMK_CYD_Universal_TFT.h>
 
-// Global driver objects
-AMK_CYD_display display;
-AMK_CYD_touch   touch;
-TFT_eSPI        tft;
+// Universal driver objects: automatically resolves to CYD or ESP32-S3 RGB!
+AMK_display display;
+AMK_touch   touch;
+TFT_eSPI    tft;
 
 void setup() {
   Serial.begin(115200);
 
-  // 1. Initialize display (auto-detects board wiring, panel, and model)
+  // 1. Initialize display (auto-detects board wiring and panel)
   tft.init();
   tft.setRotation(3);       // Landscape (Rotation 3: USB left, SD card top)
   tft.setBacklight(100);    // 0 to 100% PWM brightness
@@ -183,7 +211,7 @@ void setup() {
   touch.begin(display);
   touch.setRotation(3);
 
-  // 3. Load saved calibration from flash (if available)
+  // 3. Load saved calibration (CYD resistive) or use factory calibration (S3 capacitive)
   touch.loadCalibration();
   touch.loadFilters();
 
@@ -191,11 +219,11 @@ void setup() {
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_GREEN, TFT_BLACK);
   tft.setTextDatum(MC_DATUM);
-  tft.drawString("Hello from AMK_CYD_Universal_TFT!", tft.width() / 2, 40, 2);
+  tft.drawString("Hello from AMK Universal TFT!", tft.width() / 2, 40, 2);
 
   char info[96];
-  snprintf(info, sizeof(info), "Model: %s | Panel: %s (%dx%d)", 
-           display.modelName(), display.panelName(), tft.width(), tft.height());
+  snprintf(info, sizeof(info), "Panel: %s (%dx%d)", 
+           display.panelName(), tft.width(), tft.height());
   tft.setTextColor(TFT_CYAN, TFT_BLACK);
   tft.drawString(info, tft.width() / 2, 70, 2);
 }
@@ -205,6 +233,44 @@ void loop() {
   // Read touch input
   if (tft.getTouch(&x, &y)) {
     tft.fillCircle(x, y, 3, TFT_YELLOW);
+  }
+  delay(5);
+}
+```
+
+---
+
+### 2. ESP32-S3 Parallel RGB & GT911 Capacitive Touch (800x480)
+
+```cpp
+#include <Arduino.h>
+#include <AMK_CYD_Universal_TFT.h>
+
+// Dedicated ESP32-S3 RGB classes
+AMK_S3_RGB_display display;
+AMK_S3_touch       touch;
+TFT_eSPI           tft;
+
+void setup() {
+  Serial.begin(115200);
+
+  tft.init();               // Initializes CH422G IO expander & 16-bit RGB bus
+  tft.setRotation(0);       // Native 800x480 landscape
+  tft.setBacklight(100);    // Backlight controlled via CH422G PWM
+
+  touch.begin(display);     // GT911 capacitive touch over I2C
+
+  tft.fillScreen(TFT_BLACK);
+  tft.fillRectVGradient(0, 0, 800, 60, TFT_NAVY, TFT_BLACK);
+  tft.setTextColor(TFT_WHITE, TFT_TRANSPARENT);
+  tft.setTextDatum(MC_DATUM);
+  tft.drawString("ESP32-S3 800x480 Parallel RGB Touch Demo", 400, 30, 4);
+}
+
+void loop() {
+  uint16_t x, y;
+  if (tft.getTouch(&x, &y)) {
+    tft.fillCircle(x, y, 6, TFT_CYAN);
   }
   delay(5);
 }
@@ -521,8 +587,14 @@ Call `tft.setBGR(true);` or `tft.setBGR(false);` to flip the subpixel order.
 ### Q: Touch coordinates are misaligned
 Upload and run the `TouchCalibration` example from this library, follow the crosshair prompts, and tap **SAVE**.
 
-### Q: Board boot loops with CORRUPT HEAP or PSRAM errors
-In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled**. CYD boards do not have external PSRAM chips.
+### Q: CYD Board boot loops with CORRUPT HEAP or PSRAM errors
+In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled**. Classic CYD boards do not have external PSRAM chips.
+
+### Q: ESP32-S3 RGB Display fails to compile or shows black screen
+For ESP32-S3 Parallel RGB boards (4.3", 5.0", 7.0"):
+1. Set **Tools** -> **PSRAM** to **"OPI PSRAM"** (or "Enabled"). The 800x480 double-framebuffers require PSRAM.
+2. Set **Tools** -> **USB CDC On Boot** to **"Enabled"** to view `Serial.print()` output.
+3. Select **Board**: `Waveshare ESP32-S3-Touch-LCD-7` or `ESP32S3 Dev Module`.
 
 ---
 
@@ -539,10 +611,29 @@ In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled*
 | **`FreeFontDemo`** | Comprehensive typography showcase featuring 5 interactive pages: font families comparison, proportional point sizes, giant vector scaling (`setTextSize(2)`), accurate text datum alignment anchors, and smooth dynamic off-screen sprite telemetry. |
 | **`TouchCalibration`** | Interactive multi-stage calibration tool. Features 4-point crosshair calibration, pressure thresholding, jump filters, a live test drawing canvas, and persistent storage in NVS Flash. |
 | **`SpriteDemo`** | High-performance 5-tab UI dashboard: <br>• **`METER`**: Smooth 124x124 analog power gauge sprite + backlight brightness drag slider.<br>• **`WAVE`**: Real-time 270x110 oscilloscope waveform buffer with speed and pause controls.<br>• **`RGB/LDR`**: Onboard active-low RGB LED color tester and LDR photoresistor ambient light level bar.<br>• **`DRAW`**: Interactive touch drawing canvas with 7-color square palette selection and a Clear button.<br>• **`LOGO`**: AMK Studio splash screen with auto-detected board model, panel name, resolution, and RAM telemetry. |
+| **`ESP32_S3_RGB_Touch_Demo`** | **Universal ESP32-S3 Parallel RGB & Capacitive Multi-Touch showcase (800x480)**. Features high-speed direct framebuffer rendering, 3 interactive `TFT_eSPI_Button` controls, live touch point tracking with coordinates, and counter. |
 
 ---
 
 ## 📝 Release History & Changelog
+
+### v1.5.0
+* **ESP32-S3 Parallel RGB & GT911 Capacitive Touch Architecture**:
+  * Added complete native support for ESP32-S3 parallel RGB LCD displays (Waveshare & Sunton 4.3", 5.0", and 7.0" 800x480 ST7262).
+  * Direct 16-bit parallel RGB DMA engine with continuous auto-refresh.
+  * Direct framebuffer drawing optimizations for `fillRect`, `drawPixel`, `pushImage`, and `fillScreen`.
+  * Expanded internal line buffers to 800px to fully support wide 800x480 resolution without buffer overflow.
+* **Universal Cross-Platform Abstraction**:
+  * Cross-platform class aliases `AMK_display` and `AMK_touch` automatically resolve to CYD resistive SPI drivers on ESP32, and parallel RGB + capacitive touch on ESP32-S3.
+  * Generalized driver classes: `chipguy_S3_RGB_display`, `chipguy_S3_capacitive_touch`, `AMK_S3_RGB_display`, `AMK_S3_touch`, and `AMK_S3_Board`.
+* **Integrated CH422G I2C Expander Controller (`AMK_S3_RGB_Board.h`)**:
+  * Self-contained driver for the onboard CH422G I/O expander controlling LCD reset, LCD power, touch reset, backlight, and SD CS with FreeRTOS mutex thread-safety.
+* **Goodix GT911 Capacitive Multi-Touch Driver (`chipguy_S3_capacitive_touch`)**:
+  * Built-in multi-touch driver supporting unified `read(x, y)` coordinate detection and native orientation synchronization.
+* **Zero Overhead & 100% Backward Compatibility for Classic CYD**:
+  * All S3 code is strictly guarded with `#if defined(CONFIG_IDF_TARGET_ESP32S3)`. Classic CYD compiles produce empty translation units with **0 extra bytes of RAM or Flash overhead**.
+* **New Example Sketch**:
+  * Added [`ESP32_S3_RGB_Touch_Demo`] showing 800x480 interactive UI cards, gradients, 3 `TFT_eSPI_Button` elements, and real-time capacitive touch tracking.
 
 ### v1.4.0
 * **Linear Color Gradients & Advanced Effects**:
@@ -627,7 +718,8 @@ In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled*
 
 * **Author & Maintainer**: Aung Moe Khine ([@aungmoekhine](https://github.com/aungmoekhine) • [aungmoekhine@gmail.com](mailto:aungmoekhine@gmail.com))
 * **Upstream Inspiration & Open-Source Attribution**:
-  * **[chipguyhere](https://github.com/chipguyhere)**: Low-level CYD hardware probing routines, backlight detection, and touch SPI arbitration (MIT License).
+  * **[chipguyhere](https://github.com/chipguyhere)**: Low-level CYD hardware probing routines, backlight detection, touch SPI arbitration, and ESP32-S3 RGB display driver architecture (MIT License).
+  * **[TAMC](https://github.com/tamctec/gt911-arduino)**: GT911 capacitive touch driver foundation (Apache-2.0 License).
   * **[Bodmer (TFT_eSPI)](https://github.com/Bodmer/TFT_eSPI)**: Graphics primitive algorithms, color conversions, and off-screen sprite architecture (MIT/FreeBSD License).
   * **[Adafruit Industries](https://github.com/adafruit/Adafruit-GFX-Library)**: Adafruit GFX typography system and FreeFonts (BSD License).
 * **License**: MIT License with third-party attribution notices. Free for hobbyist, educational, and commercial projects.

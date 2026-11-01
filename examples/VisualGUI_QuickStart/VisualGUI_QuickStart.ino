@@ -16,6 +16,7 @@
 // ==============================================================================
 
 #include <Arduino.h>
+#include <lvgl.h>
 #include <AMK_CYD_Universal_TFT.h>
 #include <AMK_CYD_LVGL.h>
 #include "ui.h"

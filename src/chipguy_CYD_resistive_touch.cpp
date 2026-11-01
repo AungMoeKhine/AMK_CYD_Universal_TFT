@@ -3,6 +3,10 @@
  * See chipguy_CYD_resistive_touch.h for wiring and usage.
  */
 
+#include <Arduino.h>
+
+#if !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(BOARD_ESP32_S3_RGB)
+
 #include "chipguy_CYD_resistive_touch.h"
 
 #include <Preferences.h>
@@ -385,3 +389,5 @@ bool chipguy_CYD_resistive_touch::read(uint16_t &x, uint16_t &y) {
     _lastX = x; _lastY = y; _hasLast = true;
     return true;
 }
+
+#endif // !CONFIG_IDF_TARGET_ESP32S3
