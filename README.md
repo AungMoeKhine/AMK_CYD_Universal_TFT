@@ -140,7 +140,7 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 * **CPU Frequency**: 240MHz
 * **Flash Size**: 16MB (or board specific)
 * **Partition Scheme**: 16MB Flash (3MB APP/9.9MB FATFS) or Huge APP
-* **PSRAM**: OPI PSRAM (or Enabled) *(Mandatory: RGB framebuffers require PSRAM)*
+* **PSRAM**: OPI PSRAM (or Enabled) *(Mandatory: 800x480 RGB framebuffers require Octal PSRAM; 120MHz recommended if supported, 80MHz standard)*
 
 ---
 
@@ -595,6 +595,49 @@ For ESP32-S3 Parallel RGB boards (4.3", 5.0", 7.0"):
 1. Set **Tools** -> **PSRAM** to **"OPI PSRAM"** (or "Enabled"). The 800x480 double-framebuffers require PSRAM.
 2. Set **Tools** -> **USB CDC On Boot** to **"Enabled"** to view `Serial.print()` output.
 3. Select **Board**: `Waveshare ESP32-S3-Touch-LCD-7` or `ESP32S3 Dev Module`.
+
+### Q: Horizontal lines, screen tearing, or flickering glitches on 800x480 RGB panels
+On large 800x480 dot-clock RGB panels, the ESP32-S3 must continuously stream ~30-40 MB/s from external PSRAM to the display. If the PSRAM bus is saturated by Wi-Fi, CPU, or flash writes, the display DMA buffer can briefly starve, causing visual flicker or drift.
+* Follow the [ESP32-S3 RGB Performance & Stability Guidelines](#-esp32-s3-rgb-800x480-performance--stability-guidelines) below to completely eliminate glitches.
+
+---
+
+## 🏎️ ESP32-S3 RGB (800x480) Performance & Stability Guidelines
+
+Driving a large 800x480 dot-clock RGB panel (Waveshare & Sunton 4.3", 5.0", 7.0") requires moving **~768 KB per frame** (over **30 Megabytes per second** at 40 FPS) over the ESP32-S3's external PSRAM bus. Because the ESP32-S3 lacks a hardware priority arbiter between the CPU, Wi-Fi, and display DMA, heavy concurrent memory access can occasionally cause DMA underflow (manifesting as horizontal tearing, shifting, or flickering bands).
+
+To ensure smooth, glitch-free graphics, follow these recommended practices:
+
+### 1. Arduino IDE / PlatformIO PSRAM Settings
+* **PSRAM Mode**: Always select **"OPI PSRAM"** (Octal SPI). Never use Quad SPI for 800x480 panels.
+* **PSRAM Frequency**: If your board has an ESP32-S3 N8R8 or N16R8 module, set PSRAM Speed to **120 MHz** (or 80 MHz fallback). A 120 MHz Octal bus provides ~120 MB/s bandwidth, giving the display plenty of breathing room.
+* **CPU Frequency**: Keep set to **240 MHz**.
+
+### 2. Protect Against SPI Flash / LittleFS Stalls
+During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits), the ESP32 CPU cache is temporarily disabled, stalling PSRAM reads and causing visible scanline tearing.
+* **Solution**: Wrap your file/flash operations using the built-in flash message helper:
+  ```cpp
+  // Displays a lightweight SRAM-based message or blank screen while flash writes:
+  display.beginFlashMessage("SAVING DATA...");
+  // ... perform your LittleFS / Flash write ...
+  display.endFlashMessage();
+  ```
+
+### 3. Place Dynamic Sprites & Buffers in Internal SRAM
+* **Why**: The bounce-buffer copy task runs at high priority during display refresh. Reading sprite data out of external PSRAM during the refresh cycle adds bus contention and cache misses.
+* **Solution**: Keep small dynamic sprites, icons, and gauge overlays in internal SRAM (`MALLOC_CAP_INTERNAL`):
+  ```cpp
+  uint16_t* spriteBuf = (uint16_t*)heap_caps_malloc(width * height * 2, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  ```
+
+### 4. Isolate Display and Wi-Fi Cores
+* By default, `AMK_CYD_Universal_TFT` pins the RGB bounce-fill task to **Core 1** (`LCD7_BOUNCE_FILL_OTHER_CORE 0`).
+* Keep heavy Wi-Fi / Bluetooth networking tasks pinned to **Core 0** (the FreeRTOS PRO CPU default). This ensures that heavy network packet processing never preempts the time-critical display refresh task.
+
+### 5. Tune Pixel Clock (`pclk_hz`) for Extreme Wi-Fi / TLS Loads
+* If your sketch runs heavy continuous Wi-Fi encryption (e.g., HiveMQ TLS / HTTPS streaming) and you notice occasional scanline jitter:
+  * Lowering the panel pixel clock from 16-18 MHz down to **12 MHz - 14 MHz** reduces PSRAM bandwidth demand by **25% - 30%**.
+  * The screen will still update at a fluid ~30-35 FPS, completely eliminating DMA underflow under heavy network loads.
 
 ---
 
