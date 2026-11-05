@@ -1,7 +1,7 @@
 {
   "name": "AMK_CYD_Universal_TFT",
-  "version": "1.5.0",
-  "description": "Universal standalone TFT, touch, sprite, gradients, and visual GUI driver with TFT_eSPI_Button support for ESP32 CYD resistive boards and ESP32-S3 parallel RGB capacitive touch boards.",
+  "version": "1.5.1",
+  "description": "Universal standalone TFT, touch, sprite, gradients, and visual GUI driver with TFT_eSPI_Button support for ESP32 CYD resistive & capacitive boards and ESP32-S3 parallel RGB capacitive touch boards.",
   "keywords": [
     "display",
     "cyd",
@@ -13,6 +13,7 @@
     "tft-espi",
     "touch",
     "gt911",
+    "cst820",
     "xpt2046",
     "ili9341",
     "st7789",

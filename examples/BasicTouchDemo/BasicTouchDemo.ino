@@ -1,7 +1,9 @@
 /*
- * BasicTouchDemo.ino
- * Sample sketch demonstrating the AMK_CYD_Universal_TFT library.
- * Works out-of-the-box on ANY CYD resistive board (2.4", 2.8", 3.2", 3.5", 4.0")
+ * BasicTouchDemo.ino - AMK_CYD_Universal_TFT
+ * Sample sketch demonstrating universal touch, smooth FreeFonts,
+ * and balanced symmetrical UI alignment across all CYD boards.
+ * Works out-of-the-box on ANY CYD board (2.4", 2.8", 3.2", 3.5", 4.0")
+ * resistive & capacitive, with standard Rotation 3 landscape.
  */
 
 #include <Arduino.h>
@@ -10,10 +12,16 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. GLOBAL OBJECT DECLARATIONS
 // ═══════════════════════════════════════════════════════════════════════════════
-// Driver objects
-AMK_CYD_display display;
-AMK_CYD_touch   touch;
-TFT_eSPI        tft;
+AMK_display display;
+AMK_touch   touch;
+TFT_eSPI    tft;
+
+// Dynamic layout coordinates
+static int btnW = 100;
+static int btnH = 26;
+static int btnX = 0;
+static int btnY = 0;
+static int canvasTop = 100;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 2. SETUP
@@ -22,59 +30,96 @@ void setup() {
   Serial.begin(115200);
   delay(200);
 
-  // 1. Initialize display (auto-detects board wiring and panel controller)
-  // Optional manual override: tft.setPanel(CYDR_PANEL_ILI9341); // or CYDR_PANEL_ST7789
+  // 1. Initialize display (auto-probes panel controller and wiring)
   tft.init();
+  tft.setRotation(3);       // Standard Landscape (Rotation 3: USB left, SD card top)
+  tft.setBacklight(100);    // Backlight brightness (0 to 100%)
 
-  // 2. Set rotation: 0 = Portrait, 1 = Landscape, 2 = Portrait Flip, 3 = Landscape Flip
-  tft.setRotation(3);
-  // Optional mirror control: tft.setMirrorX(true); // Invert horizontal axis if needed
-
-  // 3. Set backlight brightness (0 to 100%). Automatically uses GPIO21 or GPIO27
-  tft.setBacklight(100);
-
-  // 4. Initialize touch and sync orientation with the display
+  // 2. Initialize touch and sync orientation with display
   touch.begin(display);
   touch.setRotation(3);
 
-  // 5. Load calibration and noise filters from NVS flash (saved by CYD_TouchCal)
-  if (touch.loadCalibration()) {
-    Serial.println("Loaded touch calibration from NVS flash.");
+  // 3. Load calibration and noise filters from NVS flash (if resistive)
+  if (!touch.capacitive()) {
+    if (touch.loadCalibration()) {
+      Serial.println("Loaded touch calibration from NVS flash.");
+    } else {
+      Serial.println("No saved calibration found; using hardware defaults.");
+    }
+    touch.loadFilters();
   } else {
-    Serial.println("No saved calibration found; using hardware defaults.");
+    Serial.printf("Capacitive touch detected (%s) - factory calibrated.\n", touch.chipName());
   }
-  touch.loadFilters();
 
-  // 6. Draw demo interface
+  // 4. Draw balanced, centered responsive interface
+  int sw = tft.width();
+  int sh = tft.height();
+
   tft.fillScreen(TFT_BLACK);
 
-  // Header bar
-  tft.fillRect(0, 0, tft.width(), 26, TFT_NAVY);
+  // Header bar with FreeFont (centered, zero overflow)
+  int headerH = (sh >= 320) ? 32 : 26;
+  tft.fillRect(0, 0, sw, headerH, TFT_NAVY);
+  tft.drawFastHLine(0, headerH, sw, TFT_CYAN);
+
+  const char* title = (sw >= 480) ? "AMK Universal TFT Touch Demo" : "AMK Universal Touch Demo";
+  tft.setFreeFont(&FreeSansBold9pt7b);
+  if (tft.textWidth(title) > sw - 16) {
+    title = "AMK Touch Demo";
+  }
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(TFT_WHITE, TFT_NAVY);
-  tft.drawString("AMK_CYD_Universal_TFT Demo", tft.width() / 2, 13, 1);
+  tft.drawString(title, sw / 2, headerH / 2);
 
-  // Hardware info box
-  tft.drawRect(8, 34, tft.width() - 16, 56, TFT_DARKGREY);
-  tft.setTextDatum(TL_DATUM);
-  tft.setTextColor(TFT_GREEN, TFT_BLACK);
+  // Hardware info card with perfectly equal margins (top/bottom/left/right)
+  int margin = (sw >= 480) ? 14 : 10;
+  int boxX   = margin;
+  int boxW   = sw - (margin * 2);
+  int boxY   = headerH + 6;
+  int boxH   = (sh >= 320) ? 78 : 66;
 
-  char buf[80];
-  snprintf(buf, sizeof(buf), "Model: %s | %s (%dx%d)", display.modelName(), display.panelName(), tft.width(), tft.height());
-  tft.drawString(buf, 16, 40, 1);
+  tft.fillRoundRect(boxX, boxY, boxW, boxH, 6, 0x10A2); // Dark slate fill
+  tft.drawRoundRect(boxX, boxY, boxW, boxH, 6, 0x2965); // High-tech border
 
-  snprintf(buf, sizeof(buf), "Wiring: %s", display.board() == CYDR_BOARD_SHARED_TOUCH ? "Shared Touch (SPI)" : "Own Touch (Pins)");
-  tft.drawString(buf, 16, 54, 1);
+  // Centered vertical rhythm inside the card with unified FreeSans typography
+  int l1_Y = boxY + (boxH * 22 / 100); // Line 1
+  int l2_Y = boxY + (boxH * 50 / 100); // Line 2 (center)
+  int l3_Y = boxY + (boxH * 78 / 100); // Line 3
 
-  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft.drawString("Touch anywhere below to draw dots!", 16, 70, 1);
+  tft.setTextDatum(MC_DATUM);
+  tft.setFreeFont(&FreeSans9pt7b);
 
-  // Clear button at bottom
-  tft.fillRoundRect(tft.width() / 2 - 40, tft.height() - 28, 80, 22, 4, TFT_MAROON);
-  tft.drawRoundRect(tft.width() / 2 - 40, tft.height() - 28, 80, 22, 4, TFT_WHITE);
+  // Line 1: Board & Panel Info (balanced string fits FreeSans perfectly with generous side margins)
+  char buf1[64];
+  snprintf(buf1, sizeof(buf1), "%s | %s", display.modelName(), display.panelName());
+  tft.setTextColor(TFT_GREEN, 0x10A2);
+  tft.drawString(buf1, sw / 2, l1_Y);
+
+  // Line 2: Touch Engine Info
+  char buf2[64];
+  snprintf(buf2, sizeof(buf2), "Touch: %s (%s)", touch.chipName(), touch.capacitive() ? "Capacitive" : "Resistive");
+  tft.setTextColor(TFT_CYAN, 0x10A2);
+  tft.drawString(buf2, sw / 2, l2_Y);
+
+  // Line 3: Interactive Instruction Prompt (harmonious size matching Line 1 & Line 2)
+  tft.setTextColor(TFT_YELLOW, 0x10A2);
+  tft.drawString("Touch screen to draw dots", sw / 2, l3_Y);
+  tft.setFreeFont(nullptr);
+
+  // Responsive, centered Clear button at bottom
+  canvasTop = boxY + boxH + 6;
+  btnW = (sw >= 480) ? 120 : 100;
+  btnH = (sh >= 320) ? 32 : 26;
+  btnX = (sw - btnW) / 2;
+  btnY = sh - btnH - 8; // Equal 8px bottom margin
+
+  tft.fillRoundRect(btnX, btnY, btnW, btnH, 5, TFT_MAROON);
+  tft.drawRoundRect(btnX, btnY, btnW, btnH, 5, TFT_WHITE);
+  tft.setFreeFont(&FreeSansBold9pt7b);
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(TFT_WHITE, TFT_MAROON);
-  tft.drawString("CLEAR", tft.width() / 2, tft.height() - 17, 1);
+  tft.drawString("CLEAR", sw / 2, btnY + (btnH / 2));
+  tft.setFreeFont(nullptr);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -84,16 +129,13 @@ void loop() {
   uint16_t x = 0, y = 0;
 
   // Read touch (returns true while screen is touched)
-  // Both tft.getTouch(&x, &y) and touch.read(x, y) work:
   if (tft.getTouch(&x, &y)) {
     // Check if the "CLEAR" button at the bottom was tapped
-    int btnX = tft.width() / 2 - 40;
-    int btnY = tft.height() - 28;
-    if (x >= btnX && x <= btnX + 80 && y >= btnY && y <= btnY + 22) {
-      // Clear drawing area
-      tft.fillRect(0, 94, tft.width(), tft.height() - 94 - 32, TFT_BLACK);
+    if (x >= btnX && x <= btnX + btnW && y >= btnY && y <= btnY + btnH) {
+      // Clear drawing canvas area
+      tft.fillRect(0, canvasTop, tft.width(), btnY - canvasTop - 4, TFT_BLACK);
       delay(150); // debounce tap
-    } else if (y > 94 && y < tft.height() - 30) {
+    } else if (y >= canvasTop && y < btnY - 4) {
       // Draw touch dot in the canvas area
       tft.fillCircle(x, y, 3, TFT_CYAN);
     }

@@ -11,8 +11,8 @@
 #include <AMK_CYD_Universal_TFT.h>
 #include <AMK_CYD_LVGL.h>
 
-AMK_CYD_display display;
-AMK_CYD_touch   touch;
+AMK_display display;
+AMK_touch   touch;
 TFT_eSPI        tft;
 AMK_CYD_LVGL    lvgl;
 
@@ -39,8 +39,10 @@ void setup() {
 
     touch.begin(display);
     touch.setRotation(3);
-    touch.loadCalibration();
-    touch.loadFilters();
+    if (!touch.capacitive()) {
+        touch.loadCalibration();
+        touch.loadFilters();
+    }
 
     // 2. Initialize LVGL in 1 LINE!
     if (!lvgl.begin(display, touch)) {

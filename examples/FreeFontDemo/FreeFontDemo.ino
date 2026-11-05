@@ -16,10 +16,14 @@
 #include <AMK_CYD_Universal_TFT.h>
 
 // ── Hardware Driver Objects ───────────────────────────────────────────────────
-AMK_CYD_display display;
-AMK_CYD_touch   touch;
-TFT_eSPI        tft;
-TFT_eSprite     telemetrySpr(&tft);
+AMK_display display;
+AMK_touch   touch;
+TFT_eSPI    tft;
+TFT_eSprite telemetrySpr(&tft);
+
+// ── Dynamic Screen Resolution ─────────────────────────────────────────────────
+static int SCRW = 320;
+static int SCRH = 240;
 
 // ── Color Theme (Deep Dark OLED Style) ────────────────────────────────────────
 const uint16_t C_BG        = 0x0000; // Pitch Black
@@ -62,73 +66,76 @@ void updateSpriteAnimation();
 
 // ── Page 0: Font Families Overview ────────────────────────────────────────────
 void drawPage0_Families() {
-  tft.fillRect(0, 27, 320, 187, C_BG);
+  tft.fillRect(0, 27, SCRW, SCRH - 54, C_BG);
+
+  int cardW = SCRW - 20;
+  int cardX = 10;
 
   // Subtitle
   tft.setFreeFont(NULL);
   tft.setTextSize(1);
   tft.setTextColor(C_GRAY, C_BG);
   tft.setTextDatum(TC_DATUM);
-  tft.drawString("48 STANDARD GFX VECTOR FONTS BUNDLED OUT OF THE BOX", 160, 32);
+  tft.drawString("48 STANDARD GFX VECTOR FONTS BUNDLED OUT OF THE BOX", SCRW / 2, 32);
 
   // 1. FreeSans (Modern UI)
-  tft.drawRoundRect(10, 46, 300, 30, 4, C_BORDER);
+  tft.drawRoundRect(cardX, 46, cardW, 30, 4, C_BORDER);
   tft.setFreeFont(FSS12);
   tft.setTextColor(C_ACCENT, C_BG);
   tft.setTextDatum(ML_DATUM);
-  tft.drawString("FreeSans 12pt", 20, 61);
+  tft.drawString("FreeSans 12pt", cardX + 10, 61);
   tft.setFreeFont(NULL);
   tft.setTextColor(C_WHITE, C_BG);
-  tft.drawString("Modern UI Cards & Clean Telemetry", 136, 61);
+  tft.drawString("Modern UI Cards & Clean Telemetry", cardX + 126, 61);
 
   // 2. FreeSerif (Classic Elegance)
-  tft.drawRoundRect(10, 80, 300, 30, 4, C_BORDER);
+  tft.drawRoundRect(cardX, 80, cardW, 30, 4, C_BORDER);
   tft.setFreeFont(FS12);
   tft.setTextColor(C_YELLOW, C_BG);
   tft.setTextDatum(ML_DATUM);
-  tft.drawString("FreeSerif 12pt", 20, 95);
+  tft.drawString("FreeSerif 12pt", cardX + 10, 95);
   tft.setFreeFont(NULL);
   tft.setTextColor(C_WHITE, C_BG);
-  tft.drawString("Elegant Decorative Headings", 136, 95);
+  tft.drawString("Elegant Decorative Headings", cardX + 126, 95);
 
   // 3. FreeMono (Terminal & Code)
-  tft.drawRoundRect(10, 114, 300, 30, 4, C_BORDER);
+  tft.drawRoundRect(cardX, 114, cardW, 30, 4, C_BORDER);
   tft.setFreeFont(FM12);
   tft.setTextColor(C_GREEN, C_BG);
   tft.setTextDatum(ML_DATUM);
-  tft.drawString("FreeMono 12pt", 20, 129);
+  tft.drawString("FreeMono 12pt", cardX + 10, 129);
   tft.setFreeFont(NULL);
   tft.setTextColor(C_WHITE, C_BG);
-  tft.drawString("Fixed-Width Consoles [0x7F]", 136, 129);
+  tft.drawString("Fixed-Width Consoles [0x7F]", cardX + 126, 129);
 
   // 4. TomThumb (Micro) & Classic GLCD 5x7
-  tft.drawRoundRect(10, 148, 300, 30, 4, C_BORDER);
+  tft.drawRoundRect(cardX, 148, cardW, 30, 4, C_BORDER);
   tft.setFreeFont(TT1);
   tft.setTextColor(C_ORANGE, C_BG);
   tft.setTextDatum(ML_DATUM);
-  tft.drawString("TomThumb 5px", 20, 163);
+  tft.drawString("TomThumb 5px", cardX + 10, 163);
   tft.setFreeFont(NULL);
   tft.setTextColor(C_GRAY, C_BG);
-  tft.drawString("Micro telemetry logs (6px total height)", 100, 163);
+  tft.drawString("Micro telemetry logs (6px total height)", cardX + 90, 163);
 
   // 5. Classic GLCD Fixed font
-  tft.drawRoundRect(10, 182, 300, 26, 4, C_BORDER);
+  tft.drawRoundRect(cardX, 182, cardW, 26, 4, C_BORDER);
   tft.setFreeFont(NULL);
   tft.setTextColor(C_WHITE, C_BG);
   tft.setTextDatum(ML_DATUM);
-  tft.drawString("Classic 5x7 Font: Selected via tft.setFreeFont(NULL);", 20, 195);
+  tft.drawString("Classic 5x7 Font: Selected via tft.setFreeFont(NULL);", cardX + 10, 195);
 }
 
 // ── Page 1: Sizes & Weights ───────────────────────────────────────────────────
 void drawPage1_Sizes() {
-  tft.fillRect(0, 27, 320, 187, C_BG);
+  tft.fillRect(0, 27, SCRW, SCRH - 54, C_BG);
 
   // Header explanation
   tft.setFreeFont(NULL);
   tft.setTextSize(1);
   tft.setTextColor(C_GRAY, C_BG);
   tft.setTextDatum(TC_DATUM);
-  tft.drawString("PROPORTIONAL POINT SIZES & TYPOGRAPHIC WEIGHTS", 160, 31);
+  tft.drawString("PROPORTIONAL POINT SIZES & TYPOGRAPHIC WEIGHTS", SCRW / 2, 31);
 
   // 9pt Regular
   tft.setFreeFont(FSS9);
@@ -155,53 +162,59 @@ void drawPage1_Sizes() {
   tft.setFreeFont(NULL);
   tft.setTextColor(C_GRAY, C_BG);
   tft.setTextDatum(BC_DATUM);
-  tft.drawString("Zero Flash Bloat: Linker strips any font not called in code!", 160, 206);
+  tft.drawString("Zero Flash Bloat: Linker strips any font not called in code!", SCRW / 2, SCRH - 34);
 }
 
 // ── Page 2: Vector Scaling Pro-Tip ────────────────────────────────────────────
 void drawPage2_Scaling() {
-  tft.fillRect(0, 27, 320, 187, C_BG);
+  tft.fillRect(0, 27, SCRW, SCRH - 54, C_BG);
+
+  int halfW = (SCRW - 30) / 2;
+  int c1X = 10;
+  int c2X = c1X + halfW + 10;
+  int mid1 = c1X + halfW / 2;
+  int mid2 = c2X + halfW / 2;
 
   // Card 1: 1x Scale (24pt)
-  tft.fillRoundRect(10, 32, 145, 110, 4, C_CARD);
-  tft.drawRoundRect(10, 32, 145, 110, 4, C_BORDER);
+  tft.fillRoundRect(c1X, 32, halfW, 110, 4, C_CARD);
+  tft.drawRoundRect(c1X, 32, halfW, 110, 4, C_BORDER);
   tft.setFreeFont(NULL);
   tft.setTextColor(C_GRAY, C_CARD);
   tft.setTextDatum(TC_DATUM);
-  tft.drawString("STANDARD 1x SCALE", 82, 38);
-  tft.drawString("tft.setTextSize(1);", 82, 50);
+  tft.drawString("STANDARD 1x SCALE", mid1, 38);
+  tft.drawString("tft.setTextSize(1);", mid1, 50);
 
   tft.setFreeFont(FSS24);
   tft.setTextColor(C_WHITE, C_CARD);
   tft.setTextDatum(MC_DATUM);
-  tft.drawString("24pt", 82, 88);
+  tft.drawString("24pt", mid1, 88);
   tft.setFreeFont(NULL);
   tft.setTextColor(C_ACCENT, C_CARD);
-  tft.drawString("~34px Height", 82, 124);
+  tft.drawString("~34px Height", mid1, 124);
 
   // Card 2: 2x Scale (Giant 48pt)
-  tft.fillRoundRect(165, 32, 145, 110, 4, C_CARD);
-  tft.drawRoundRect(165, 32, 145, 110, 4, C_ACCENT);
+  tft.fillRoundRect(c2X, 32, halfW, 110, 4, C_CARD);
+  tft.drawRoundRect(c2X, 32, halfW, 110, 4, C_ACCENT);
   tft.setFreeFont(NULL);
   tft.setTextColor(C_YELLOW, C_CARD);
   tft.setTextDatum(TC_DATUM);
-  tft.drawString("SCALED 2x (GIANT!)", 237, 38);
-  tft.drawString("tft.setTextSize(2);", 237, 50);
+  tft.drawString("SCALED 2x (GIANT!)", mid2, 38);
+  tft.drawString("tft.setTextSize(2);", mid2, 50);
 
   tft.setFreeFont(FSS24);
   tft.setTextSize(2); // Scale FreeFont glyphs!
   tft.setTextColor(C_YELLOW, C_CARD);
   tft.setTextDatum(MC_DATUM);
-  tft.drawString("48pt", 237, 90);
+  tft.drawString("48pt", mid2, 90);
   tft.setTextSize(1); // Restore standard scale
 
   tft.setFreeFont(NULL);
   tft.setTextColor(C_YELLOW, C_CARD);
-  tft.drawString("~68px Tall Vector!", 237, 124);
+  tft.drawString("~68px Tall Vector!", mid2, 124);
 
   // Pro-Tip Banner at bottom
-  tft.fillRoundRect(10, 148, 300, 56, 4, C_PANEL);
-  tft.drawRoundRect(10, 148, 300, 56, 4, C_BORDER);
+  tft.fillRoundRect(10, 148, SCRW - 20, 56, 4, C_PANEL);
+  tft.drawRoundRect(10, 148, SCRW - 20, 56, 4, C_BORDER);
 
   tft.setFreeFont(FSSB9);
   tft.setTextColor(C_ACCENT, C_PANEL);
@@ -216,33 +229,33 @@ void drawPage2_Scaling() {
 
 // ── Page 3: Precise Text Alignment (Datums) ───────────────────────────────────
 void drawPage3_Datums() {
-  tft.fillRect(0, 27, 320, 187, C_BG);
+  tft.fillRect(0, 27, SCRW, SCRH - 54, C_BG);
 
   tft.setFreeFont(NULL);
   tft.setTextSize(1);
   tft.setTextColor(C_GRAY, C_BG);
   tft.setTextDatum(TC_DATUM);
-  tft.drawString("NINE ACCURATE TEXT DATUM ANCHORS (setTextDatum)", 160, 31);
+  tft.drawString("NINE ACCURATE TEXT DATUM ANCHORS (setTextDatum)", SCRW / 2, 31);
 
   // Draw 4 test boxes with crosshairs
-  const int boxW = 142;
-  const int boxH = 74;
+  int boxW = (SCRW - 36) / 2;
+  int boxH = (SCRH >= 320) ? 95 : 74;
 
   struct DatumDemo {
-    int x, y;
+    int col, row;
     uint8_t datum;
     const char* label;
     const char* datumName;
   } demos[4] = {
-    { 12,  44, TL_DATUM, "Top-Left",     "TL_DATUM" },
-    { 166, 44, TR_DATUM, "Top-Right",    "TR_DATUM" },
-    { 12, 126, MC_DATUM, "Middle-Center", "MC_DATUM" },
-    { 166, 126, BR_DATUM, "Bottom-Right", "BR_DATUM" }
+    { 0, 0, TL_DATUM, "Top-Left",      "TL_DATUM" },
+    { 1, 0, TR_DATUM, "Top-Right",     "TR_DATUM" },
+    { 0, 1, MC_DATUM, "Middle-Center", "MC_DATUM" },
+    { 1, 1, BR_DATUM, "Bottom-Right",  "BR_DATUM" }
   };
 
   for (int i = 0; i < 4; i++) {
-    int bx = demos[i].x;
-    int by = demos[i].y;
+    int bx = 12 + demos[i].col * (boxW + 12);
+    int by = 44 + demos[i].row * (boxH + 8);
     tft.drawRoundRect(bx, by, boxW, boxH, 4, C_BORDER);
 
     // Crosshair target in the box
@@ -268,21 +281,23 @@ void drawPage3_Datums() {
   tft.setFreeFont(NULL);
   tft.setTextColor(C_GRAY, C_BG);
   tft.setTextDatum(BC_DATUM);
-  tft.drawString("Crosshair dot indicates the (X, Y) coordinate anchor point.", 160, 210);
+  tft.drawString("Crosshair dot indicates the (X, Y) coordinate anchor point.", SCRW / 2, SCRH - 30);
 }
 
 // ── Page 4: Smooth Off-Screen Sprite (TFT_eSprite) ─────────────────────────────
 void drawPage4_Sprite() {
-  tft.fillRect(0, 27, 320, 187, C_BG);
+  tft.fillRect(0, 27, SCRW, SCRH - 54, C_BG);
 
   // Background frame card
-  tft.drawRoundRect(18, 30, 284, 178, 6, C_BORDER);
+  int frameW = SCRW - 36;
+  int frameH = SCRH - 62;
+  tft.drawRoundRect(18, 30, frameW, frameH, 6, C_BORDER);
 
   tft.setFreeFont(NULL);
   tft.setTextSize(1);
   tft.setTextColor(C_GRAY, C_BG);
   tft.setTextDatum(TC_DATUM);
-  tft.drawString("SMOOTH OFF-SCREEN SPRITE RENDERING (TFT_eSprite)", 160, 34);
+  tft.drawString("SMOOTH OFF-SCREEN SPRITE RENDERING (TFT_eSprite)", SCRW / 2, 34);
 
   // Initial draw of sprite
   updateSpriteAnimation();
@@ -291,9 +306,14 @@ void drawPage4_Sprite() {
 void updateSpriteAnimation() {
   if (currentPage != 4) return;
 
+  int sprW = 270;
+  int sprH = 136;
+  int sprX = (SCRW - sprW) / 2;
+  int sprY = (SCRH - sprH) / 2 + 5;
+
   // Clear sprite buffer (270x136, 16-bit color in RAM)
   telemetrySpr.fillSprite(C_CARD);
-  telemetrySpr.drawRoundRect(0, 0, 270, 136, 5, C_BORDER);
+  telemetrySpr.drawRoundRect(0, 0, sprW, sprH, 5, C_BORDER);
 
   // Header inside sprite
   telemetrySpr.setFreeFont(FSSB9);
@@ -302,7 +322,7 @@ void updateSpriteAnimation() {
   telemetrySpr.drawString("LIVE SYSTEM TELEMETRY", 12, 10);
 
   // Status icon / dot
-  telemetrySpr.fillCircle(254, 16, 4, C_GREEN);
+  telemetrySpr.fillCircle(sprW - 16, 16, 4, C_GREEN);
 
   // Calculate dynamic oscillating values
   animPhase += 0.05f;
@@ -325,7 +345,7 @@ void updateSpriteAnimation() {
   // Sparkline bar graph inside sprite
   int barX = 12;
   int barY = 76;
-  int barW = 246;
+  int barW = sprW - 24;
   int barH = 10;
   telemetrySpr.drawRoundRect(barX, barY, barW, barH, 2, C_BORDER);
   int fillW = (int)((val / 100.0f) * (barW - 4));
@@ -346,32 +366,33 @@ void updateSpriteAnimation() {
   telemetrySpr.drawString("Buffer: 270x136 16-bit | 0 Screen Tearing", 12, 118);
 
   // Push off-screen sprite buffer directly to physical display
-  telemetrySpr.pushSprite(25, 48);
+  telemetrySpr.pushSprite(sprX, sprY);
 }
 
 // ── Persistent Navigation Header & Footer ─────────────────────────────────────
 void drawHeader() {
-  tft.fillRect(0, 0, 320, 26, C_PANEL);
-  tft.drawFastHLine(0, 26, 320, C_ACCENT);
+  tft.fillRect(0, 0, SCRW, 26, C_PANEL);
+  tft.drawFastHLine(0, 26, SCRW, C_ACCENT);
 
   tft.setFreeFont(FSS9);
   tft.setTextColor(C_WHITE, C_PANEL);
   tft.setTextDatum(MC_DATUM);
-  tft.drawString("AMK_CYD FreeFont Showcase", 160, 13);
+  tft.drawString("AMK FreeFont Showcase", SCRW / 2, 13);
 }
 
 void drawFooter() {
-  tft.fillRect(0, 214, 320, 26, C_PANEL);
-  tft.drawFastHLine(0, 214, 320, C_BORDER);
+  int footY = SCRH - 26;
+  tft.fillRect(0, footY, SCRW, 26, C_PANEL);
+  tft.drawFastHLine(0, footY, SCRW, C_BORDER);
 
   // [ < PREV ] Button
-  tft.fillRoundRect(6, 217, 72, 20, 3, C_CARD);
-  tft.drawRoundRect(6, 217, 72, 20, 3, C_BORDER);
+  tft.fillRoundRect(6, footY + 3, 72, 20, 3, C_CARD);
+  tft.drawRoundRect(6, footY + 3, 72, 20, 3, C_BORDER);
   tft.setFreeFont(NULL);
   tft.setTextSize(1);
   tft.setTextColor(C_ACCENT, C_CARD);
   tft.setTextDatum(MC_DATUM);
-  tft.drawString("< PREV", 42, 227);
+  tft.drawString("< PREV", 42, footY + 13);
 
   // Page Indicator
   char pageBuf[32];
@@ -384,13 +405,14 @@ void drawFooter() {
   };
   snprintf(pageBuf, sizeof(pageBuf), "PAGE %s", titles[currentPage]);
   tft.setTextColor(C_WHITE, C_PANEL);
-  tft.drawString(pageBuf, 160, 227);
+  tft.drawString(pageBuf, SCRW / 2, footY + 13);
 
   // [ NEXT > ] Button
-  tft.fillRoundRect(242, 217, 72, 20, 3, C_CARD);
-  tft.drawRoundRect(242, 217, 72, 20, 3, C_BORDER);
+  int nextX = SCRW - 78;
+  tft.fillRoundRect(nextX, footY + 3, 72, 20, 3, C_CARD);
+  tft.drawRoundRect(nextX, footY + 3, 72, 20, 3, C_BORDER);
   tft.setTextColor(C_ACCENT, C_CARD);
-  tft.drawString("NEXT >", 278, 227);
+  tft.drawString("NEXT >", nextX + 36, footY + 13);
 }
 
 void renderCurrentPage() {
@@ -426,14 +448,18 @@ void setup() {
   // 1. Initialize Display (Rotation 3: Landscape, USB left, SD card top)
   tft.init();
   tft.setRotation(3);
+  SCRW = tft.width();
+  SCRH = tft.height();
   tft.setBacklight(100);
   tft.fillScreen(C_BG);
 
   // 2. Initialize Touch Controller
   touch.begin(display);
   touch.setRotation(3);
-  touch.loadCalibration();
-  touch.loadFilters();
+  if (!touch.capacitive()) {
+    touch.loadCalibration();
+    touch.loadFilters();
+  }
 
   // 3. Create Off-Screen Sprite Buffer (16-bit color in RAM)
   telemetrySpr.setColorDepth(16);
@@ -451,11 +477,11 @@ void loop() {
   if (isPressed && !wasTouched && (millis() - lastTouchRelease > 250)) {
     wasTouched = true;
 
-    // Check Footer Buttons (Y >= 210)
-    if (ty >= 210) {
+    // Check Footer Buttons (Y >= SCRH - 30)
+    if (ty >= (uint16_t)(SCRH - 30)) {
       if (tx < 100) {
         prevPage();
-      } else if (tx > 220) {
+      } else if (tx > (uint16_t)(SCRW - 100)) {
         nextPage();
       }
     } else {

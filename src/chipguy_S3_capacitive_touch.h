@@ -217,6 +217,8 @@ class chipguy_S3_capacitive_touch {
     int16_t nativeHeight() const { return height; }
     bool mirrorsX() const { return false; }
     bool mirrorsY() const { return false; }
+    bool capacitive() const { return true; }
+    const char *chipName() const { return "GT911"; }
     uint8_t isLargeDetect;
     uint8_t touches = 0;
     bool isTouched = false;

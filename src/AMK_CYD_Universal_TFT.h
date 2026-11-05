@@ -44,6 +44,31 @@
   using AMK_display             = AMK_S3_RGB_display;
   using AMK_touch               = AMK_S3_touch;
 
+  // Compatibility stubs for CYD override structures when building on ESP32-S3
+  struct cydr_overrides_t {
+      uint8_t panel = 0;
+      uint8_t colorOrder = 0;
+      uint8_t inversion = 0;
+      uint8_t mirrorX = 0;
+      uint8_t mirrorY = 0;
+      uint8_t spiClock = 0;
+      uint8_t backlight = 0;
+      uint8_t touchBus = 0;
+      uint8_t touchMirrorX = 0;
+      uint8_t touchMirrorY = 0;
+      uint8_t touchSwapXY = 0;
+      uint8_t redLed = 0;
+      uint8_t greenBlue = 0;
+      uint8_t gpio34 = 0;
+      uint8_t model = 0;
+      uint8_t size = 0;
+      uint8_t powerKey = 0;
+  };
+  inline bool cydr_loadOverrides(cydr_overrides_t &) { return false; }
+  inline void cydr_saveOverrides(const cydr_overrides_t &) {}
+  inline void cydr_clearOverrides() {}
+  inline bool cydr_anyOverride(const cydr_overrides_t &) { return false; }
+
 #else
   #define AMK_BACKEND_ESP32_CYD 1
   #include "chipguy_CYD_resistive_display.h"
@@ -445,7 +470,7 @@ public:
 #endif
     }
     uint8_t getRotation() const       { return display.rotation(); }
-    void setSwapBytes(bool swap)      { _swapBytes = swap;         }
+    void setSwapBytes(bool swap)      { _swapBytes = swap; }
     bool getSwapBytes() const         { return _swapBytes;         }
     void setBGR(bool bgr)             { display.setBGR(bgr);       }
     bool isBGR() const                { return display.isBGR();    }
@@ -1118,12 +1143,24 @@ public:
     uint16_t getTouchRawZ() {
         return touch.pressure();
     }
+    bool isCapacitive() const {
+        return touch.capacitive();
+    }
+    const char* getTouchChipName() const {
+        return touch.chipName();
+    }
     void setTouch(uint16_t *parameters) {
         if (!parameters) return;
         touch.setCalibration(parameters[0], parameters[1], parameters[2], parameters[3]);
     }
     void calibrateTouch(uint16_t *parameters, uint16_t color_fg, uint16_t color_bg, uint8_t size) {
         if (!parameters) return;
+        if (touch.capacitive()) {
+            parameters[0] = 0; parameters[1] = width();
+            parameters[2] = 0; parameters[3] = height();
+            parameters[4] = 0;
+            return;
+        }
         int16_t w = width(), h = height();
         const int16_t cx[4] = { (int16_t)size, (int16_t)(w - size), (int16_t)(w - size), (int16_t)size };
         const int16_t cy[4] = { (int16_t)size, (int16_t)size, (int16_t)(h - size), (int16_t)(h - size) };
@@ -1220,6 +1257,30 @@ public:
         touch.setCalibration(minX, maxX, minY, maxY);
     }
 #endif
+
+    const char* getModelName() const {
+        return display.modelName();
+    }
+    const char* getPanelName() const {
+        return display.panelName();
+    }
+    uint8_t getDiagonalTenths() const {
+        return display.diagonalTenths();
+    }
+    bool isReadbackSupported() const {
+#if defined(AMK_BACKEND_ESP32_S3)
+        return true;
+#else
+        return display.readback() != CYDR_READBACK_NONE;
+#endif
+    }
+    const char* getReadbackName() const {
+#if defined(AMK_BACKEND_ESP32_S3)
+        return "Internal Framebuffer";
+#else
+        return display.readbackName();
+#endif
+    }
 
     // Print interface
     virtual size_t write(uint8_t c) override {

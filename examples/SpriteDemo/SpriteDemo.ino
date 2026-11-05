@@ -22,8 +22,8 @@
 #include "logo_tft.h"
 
 // ── 1. GLOBAL DRIVER OBJECTS ──────────────────────────────────────────────────
-AMK_CYD_display display;
-AMK_CYD_touch   touch;
+AMK_display display;
+AMK_touch   touch;
 TFT_eSPI        tft;
 
 // Off-screen Sprites in RAM
@@ -313,7 +313,7 @@ void switchTab(int newTab) {
     tft.drawString(String("Res  : ") + String(SCRW) + "x" + String(SCRH), cardX + 10, cardY + 78, 1);
 
     tft.setTextColor(C_TEXT_MUTED, C_CARD_BG);
-    tft.drawString("Touch: XPT2046", cardX + 10, cardY + 94, 1);
+    tft.drawString(String("Touch: ") + touch.chipName(), cardX + 10, cardY + 94, 1);
     tft.drawString("SPI  : 40MHz DMA", cardX + 10, cardY + 110, 1);
     tft.drawString(String("RAM  : ") + String(ESP.getFreeHeap() / 1024) + " KB Free", cardX + 10, cardY + 126, 1);
   }
@@ -602,8 +602,10 @@ void setup() {
   // Initialize touch
   touch.begin(display);
   touch.setRotation(3);
-  touch.loadCalibration();
-  touch.loadFilters();
+  if (!touch.capacitive()) {
+    touch.loadCalibration();
+    touch.loadFilters();
+  }
 
   // Initialize RGB LED pins
   pinRed   = display.redLedPin();

@@ -1,29 +1,26 @@
 /*
   AMK_CYD_Universal_TFT - Gradient & Alpha Blending Demo
   ------------------------------------------------------
-  Showcases the high-performance linear color gradients and alpha-blending
-  features introduced in AMK_CYD_Universal_TFT v1.4.0:
+  Showcases high-performance linear color gradients and alpha-blending:
 
     1. fillRectHGradient() - Horizontal linear color gradient
     2. fillRectVGradient() - Vertical linear color gradient
     3. alphaBlend()        - High-speed 16-bit RGB565 alpha blending
     4. TFT_eSPI_Button     - Interactive touch button with theme toggling
     5. Onboard RGB LED     - Hardware sync matching the active theme
+    6. Balanced FreeFonts  - Perfectly centered alignment & symmetrical margins
 
   Hardware Supported:
-    ESP32 Cheap Yellow Display (CYD) resistive boards
-    (2.4", 2.8" ILI9341/ST7789, 3.2", 3.5" ST7796, and Dual-USB)
-
-  Author: Aung Moe Khine
-  Repository: https://github.com/aungmoekhine/AMK_CYD_Universal_TFT
+    All Cheap Yellow Display (CYD) boards (2.4", 2.8", 3.2", 3.5", 4.0")
+    resistive & capacitive, with standard Rotation 3 landscape.
 */
 
 #include <AMK_CYD_Universal_TFT.h>
 
 // Instantiate display, touch, and TFT_eSPI instance
-AMK_CYD_display display;
-AMK_CYD_touch   touch;
-TFT_eSPI        tft;
+AMK_display display;
+AMK_touch   touch;
+TFT_eSPI    tft;
 TFT_eSPI_Button btnTheme;
 
 // Theme definitions
@@ -78,10 +75,12 @@ const uint8_t THEME_COUNT = sizeof(themes) / sizeof(themes[0]);
 uint8_t currentTheme = 0;
 
 void setOnboardRGB(uint8_t mask) {
+#if !defined(AMK_BACKEND_ESP32_S3)
     // CYD RGB LED is active-LOW
     digitalWrite(display.redLedPin(),   (mask & 1) ? LOW : HIGH);
     digitalWrite(display.greenLedPin(), (mask & 2) ? LOW : HIGH);
     digitalWrite(display.blueLedPin(),  (mask & 4) ? LOW : HIGH);
+#endif
 }
 
 void drawGlassBar(int16_t x, int16_t y, int16_t w, int16_t h) {
@@ -108,70 +107,94 @@ void drawGlassBar(int16_t x, int16_t y, int16_t w, int16_t h) {
 
 void renderDashboard() {
     const GradientTheme &th = themes[currentTheme];
+    int sw = tft.width();
+    int sh = tft.height();
 
     // Update hardware LED
     setOnboardRGB(th.ledMask);
 
-    // 1. Top Header with Horizontal Linear Gradient
-    tft.fillRectHGradient(0, 0, tft.width(), 32, th.headerStart, th.headerEnd);
-    tft.drawFastHLine(0, 32, tft.width(), TFT_WHITE);
+    // 1. Top Header with Horizontal Linear Gradient and centered FreeFont
+    tft.fillRectHGradient(0, 0, sw, 30, th.headerStart, th.headerEnd);
+    tft.drawFastHLine(0, 30, sw, TFT_WHITE);
 
+    const char* title = (sw >= 480) ? "AMK GRADIENT & ALPHA DEMO" : "AMK GRADIENT DEMO";
+    tft.setFreeFont(&FreeSansBold9pt7b);
     tft.setTextDatum(MC_DATUM);
     tft.setTextColor(TFT_WHITE, TFT_TRANSPARENT);
-    tft.drawString("AMK GRADIENT & ALPHA DEMO", tft.width() / 2, 16, 2);
+    tft.drawString(title, sw / 2, 15);
 
-    // 2. Three Metric Cards with Vertical Linear Gradients
-    // Dimensions: 3 cards x 96px width + 8px gaps = 320px
-    const int16_t cardW = 96;
-    const int16_t cardH = 94;
-    const int16_t cardY = 38;
+    // 2. Three Metric Cards with Symmetrical Gaps & Margins
+    int16_t gap         = (sw >= 480) ? 10 : 8;
+    int16_t totalCardsW = sw - (gap * 4);
+    int16_t cardW       = totalCardsW / 3;
+    int16_t rem         = totalCardsW % 3;
+    int16_t sideMargin  = gap + (rem / 2); // Equal left & right margin
+
+    int16_t cardH = (sh >= 320) ? 110 : 80;
+    int16_t cardY = 36;
+
+    int16_t c1X = sideMargin;
+    int16_t c2X = sideMargin + cardW + gap;
+    int16_t c3X = sideMargin + (cardW + gap) * 2;
 
     // Card 1: CPU / Core
-    int16_t c1X = 8;
     tft.fillRectVGradient(c1X, cardY, cardW, cardH, th.card1Top, th.card1Bot);
     tft.drawRect(c1X, cardY, cardW, cardH, TFT_WHITE);
-    tft.setTextDatum(TC_DATUM);
+    tft.setFreeFont(nullptr);
+    tft.setTextDatum(MC_DATUM);
     tft.setTextColor(TFT_WHITE, TFT_TRANSPARENT);
-    tft.drawString("CORE TEMP", c1X + (cardW / 2), cardY + 6, 1);
-    tft.drawString("48.5 C", c1X + (cardW / 2), cardY + 28, 2);
-    tft.drawString("NORMAL", c1X + (cardW / 2), cardY + 70, 1);
+    tft.drawString("CORE TEMP", c1X + (cardW / 2), cardY + 12, 1);
+
+    tft.setFreeFont(&FreeSansBold9pt7b);
+    tft.drawString("48.5 C", c1X + (cardW / 2), cardY + 40);
+    tft.setFreeFont(nullptr);
+    tft.drawString("NORMAL", c1X + (cardW / 2), cardY + cardH - 12, 1);
 
     // Card 2: Wireless Signal
-    int16_t c2X = 112;
     tft.fillRectVGradient(c2X, cardY, cardW, cardH, th.card2Top, th.card2Bot);
     tft.drawRect(c2X, cardY, cardW, cardH, TFT_WHITE);
-    tft.setTextDatum(TC_DATUM);
+    tft.setTextDatum(MC_DATUM);
     tft.setTextColor(TFT_WHITE, TFT_TRANSPARENT);
-    tft.drawString("WIFI RSSI", c2X + (cardW / 2), cardY + 6, 1);
-    tft.drawString("-52 dBm", c2X + (cardW / 2), cardY + 28, 2);
-    tft.drawString("EXCELLENT", c2X + (cardW / 2), cardY + 70, 1);
+    tft.drawString("WIFI RSSI", c2X + (cardW / 2), cardY + 12, 1);
+
+    tft.setFreeFont(&FreeSansBold9pt7b);
+    tft.drawString("-52 dBm", c2X + (cardW / 2), cardY + 40);
+    tft.setFreeFont(nullptr);
+    tft.drawString("EXCELLENT", c2X + (cardW / 2), cardY + cardH - 12, 1);
 
     // Card 3: Battery Telemetry
-    int16_t c3X = 216;
     tft.fillRectVGradient(c3X, cardY, cardW, cardH, th.card3Top, th.card3Bot);
     tft.drawRect(c3X, cardY, cardW, cardH, TFT_WHITE);
-    tft.setTextDatum(TC_DATUM);
+    tft.setTextDatum(MC_DATUM);
     tft.setTextColor(TFT_WHITE, TFT_TRANSPARENT);
-    tft.drawString("BATTERY", c3X + (cardW / 2), cardY + 6, 1);
-    tft.drawString("96 %", c3X + (cardW / 2), cardY + 28, 2);
-    tft.drawString("CHARGING", c3X + (cardW / 2), cardY + 70, 1);
+    tft.drawString("BATTERY", c3X + (cardW / 2), cardY + 12, 1);
 
-    // 3. Alpha Blended Frosted Glass Strip
-    tft.setTextDatum(TL_DATUM);
+    tft.setFreeFont(&FreeSansBold9pt7b);
+    tft.drawString("96 %", c3X + (cardW / 2), cardY + 40);
+    tft.setFreeFont(nullptr);
+    tft.drawString("CHARGING", c3X + (cardW / 2), cardY + cardH - 12, 1);
+
+    // 3. Alpha Blended Frosted Glass Strip with clear spacing
+    int16_t glassLabelY = cardY + cardH + 9;
+    int16_t glassH      = (sh >= 320) ? 28 : 24;
+    int16_t glassBarY   = glassLabelY + 9;
+    tft.setTextDatum(MC_DATUM);
     tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-    tft.drawString("Alpha Blended Transparency (25% - 100%):", 8, 138, 1);
-    drawGlassBar(8, 150, 304, 28);
+    tft.drawString("Alpha Blended Transparency (25% - 100%)", sw / 2, glassLabelY, 1);
+    drawGlassBar(sideMargin, glassBarY, sw - (sideMargin * 2), glassH);
 
-    // 4. Interactive Theme Switch Button (TFT_eSPI_Button)
-    char labelBuf[40];
+    // 4. Interactive Theme Switch Button (Symmetrically aligned)
+    int16_t btnY = glassBarY + glassH + 9;
+    int16_t btnH = (sh >= 320) ? 38 : 32;
+    char labelBuf[48];
     snprintf(labelBuf, sizeof(labelBuf), "THEME: %s (TAP TO CYCLE)", th.name);
-    btnTheme.initButtonUL(&tft, 8, 186, 304, 34, TFT_WHITE, th.btnColor, TFT_WHITE, labelBuf, 1);
+    btnTheme.initButtonUL(&tft, sideMargin, btnY, sw - (sideMargin * 2), btnH, TFT_WHITE, th.btnColor, TFT_WHITE, labelBuf, 1);
     btnTheme.drawButton(false);
 
-    // Footer Info
+    // Footer Info (Centered)
     tft.setTextDatum(MC_DATUM);
     tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-    tft.drawString("AMK_CYD_Universal_TFT v1.4.0 * Native Hardware Gradients", tft.width() / 2, 230, 1);
+    tft.drawString("AMK_CYD_Universal_TFT Native Hardware Gradients", sw / 2, sh - 7, 1);
 }
 
 void setup() {
@@ -180,15 +203,25 @@ void setup() {
 
     Serial.println("\n--- AMK_CYD_Universal_TFT Gradient Demo ---");
 
-    // Initialize display and touch with runtime hardware auto-probing
+    // Initialize display & touch with Rotation 3 landscape
     tft.init();
-    tft.setRotation(3); // Standard CYD landscape rotation
+    tft.setRotation(3);
+    tft.setBacklight(100);
     tft.fillScreen(TFT_BLACK);
 
+    touch.begin(display);
+    touch.setRotation(3);
+    if (!touch.capacitive()) {
+        touch.loadCalibration();
+        touch.loadFilters();
+    }
+
     // Initialize onboard RGB LED pins as outputs
+#if !defined(AMK_BACKEND_ESP32_S3)
     pinMode(display.redLedPin(), OUTPUT);
     pinMode(display.greenLedPin(), OUTPUT);
     pinMode(display.blueLedPin(), OUTPUT);
+#endif
 
     // Render the initial dashboard
     renderDashboard();

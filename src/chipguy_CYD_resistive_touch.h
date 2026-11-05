@@ -1,6 +1,9 @@
 /*
  * XPT2046 resistive touch driver for the resistive-touch CYD family
- * (ESP32-2432S028; ESP32-32E 2.8", 3.2", 3.5", 4.0"; ESP32-024; ESP32-035).
+ * (ESP32-2432S028; ESP32-32E 2.8", 3.2", 3.5", 4.0"; ESP32-024; ESP32-035;
+ * ESP32-2432S032), the GT911 of the capacitive ESP32-2432S032C and
+ * ESP32-3248S035C, and the CST820 of the capacitive ESP32-2432S024C and
+ * JC2432W328.
  *
  * The XPT2046 is wired two different ways, and begin() picks the right one for
  * the board the display driver found:
@@ -9,12 +12,19 @@
  *     the XPT2046's ~2.5 MHz limit.
  *       XPT2046_CLK 25   XPT2046_MOSI 32   XPT2046_MISO 39
  *       XPT2046_CS  33   XPT2046_IRQ  36 (active LOW while touched)
- *   - SHARED_TOUCH (32E 3.2", 3.5", 4.0", ESP32-024, ESP32-035): on the DISPLAY's SPI bus (SCLK 14, MOSI 13,
+ *   - SHARED_TOUCH (32E 3.2", 3.5", 4.0", ESP32-024): on the DISPLAY's SPI bus (SCLK 14, MOSI 13,
  *     MISO 12), added as a second ESP-IDF SPI device with its own chip-select
  *     and a slow clock.
  *       XPT2046_CS  33   XPT2046_IRQ  36 (active LOW while touched)
  *     Here begin() must come AFTER the display's begin(), which sets up that
  *     bus, and a read waits for any in-flight display DMA first.
+ *
+ * Capacitive boards have a GT911 (ESP32-2432S032C) or CST820 (ESP32-2432S024C,
+ * JC2432W328) instead, on I2C (Wire1: SDA 33, SCL 32; RST 25 is left alone and
+ * INT isn't used -- both chips are polled).  begin() picks whichever chip the
+ * display found (display.touchChip()), and read() returns its points through
+ * the same rotation mapping.  They need no calibration: setCalibration(),
+ * the filters and pressure() don't apply, and loadCalibration() returns false.
  *
  * Resistive panels vary unit-to-unit, so raw ADC readings are mapped to screen
  * pixels through a calibration rectangle.  The defaults work on typical units;
@@ -50,19 +60,35 @@ public:
     // The board this driver was set up for, after begin().
     cydr_board_t board() const { return _board; }
 
+    // True when the touch controller is capacitive (GT911 or CST820), after
+    // begin().
+    bool capacitive() const { return _chip != CYDR_TOUCH_XPT2046; }
+    // The touch controller in use, after begin(), and its name.
+    cydr_touch_chip_t chip() const { return _chip; }
+    const char *chipName() const;
+
+    // Before begin(): whether to apply the touch overrides saved in NVS
+    // (default true; see cydr_overrides_t).  The touch bus override is the
+    // display's: begin(display) follows display.touchBus().
+    void useOverrides(bool on) { _useOverrides = on; }
+    // After begin(): what detection chose for the touch fields of
+    // cydr_overrides_t (1 off / 2 on); the other fields are left alone.
+    void autoValues(cydr_overrides_t &o) const;
+    // After begin(), change the axis handling live (not saved); for
+    // previewing overrides.  Also what the overrides set at begin().
+    void setAxes(bool mirrorX, bool mirrorY, bool swapXY);
+
     // Unrotated panel size the touch maps onto (240x320 or 320x480).
     int16_t nativeWidth()  const { return _nativeW; }
     int16_t nativeHeight() const { return _nativeH; }
 
-    // Whether read() mirrors raw X / raw Y to match the panel (own-touch and
-    // ST7789 ESP32-024: X; 3.2", ILI9341 ESP32-024 and ESP32-035: both;
-    // 32E 3.5" / 4.0": Y).  TouchCalibrate uses these to fit the calibration.
+    // Whether read() mirrors raw X / raw Y to match the panel (own-touch:
+    // X; shared-touch 240x320 (3.2"): both; 320x480: Y).  TouchCalibrate uses these to fit the calibration.
     bool mirrorsX() const { return _mirrorX; }
     bool mirrorsY() const { return _mirrorY; }
-
     // True on the ST7789 ESP32-024, whose XPT2046 X and Y channels are
-    // swapped relative to the panel.  readRaw() has already swapped them
-    // back, so calibration code needs no special case.
+    // swapped relative to the panel (the ILI9341 one's aren't).  readRaw() has already swapped them back, so
+    // calibration code needs no special case.
     bool swapsXY() const { return _swapXY; }
 
     // Match the touch coordinate mapping to the display rotation, using the
@@ -119,18 +145,6 @@ public:
     // numbers.
     bool readRaw(uint16_t &rawX, uint16_t &rawY);
 
-    // Configure touch controller with optional rotation
-    bool begin(int rotation) {
-        bool ok = begin();
-        if (ok) setRotation(rotation);
-        return ok;
-    }
-
-    // Direct access to calibration rectangle & filter values
-    uint16_t _xMin = 200, _xMax = 3900, _yMin = 200, _yMax = 3900;
-    uint16_t _minPressure = 0;
-    uint16_t _maxJump = 0;
-
 private:
     chipguy_CYD_resistive_display *_display = nullptr;
     spi_device_handle_t _spi = nullptr;   // shared-bus device (shared-touch boards only)
@@ -140,18 +154,34 @@ private:
     bool     _mirrorX = true, _mirrorY = false;
     bool     _swapXY = false;
     const char *_nvsNs;
+    bool     _useOverrides = true;
+    bool     _autoMx = false, _autoMy = false, _autoSwap = false;
+    cydr_touch_chip_t _chip = CYDR_TOUCH_XPT2046;
+    uint8_t  _capAddr = 0;                // capacitive chip's I2C address
+    bool     _gtDown = false;             // capacitive: last reported state
+    uint16_t _gtX = 0, _gtY = 0;
 
     uint8_t  _rotation = 0;
+    uint16_t _xMin, _xMax, _yMin, _yMax;
 
-    // Noise-filter state
+    // Noise-filter settings and state (see setFilters()).
+    uint16_t _minPressure = 0;
+    uint16_t _maxJump = 0;
     uint16_t _lastPressure = 0;
     uint16_t _lastX = 0, _lastY = 0;
     bool     _hasLast = false;
     uint8_t  _jumpCount = 0;
 
     bool     _setup(cydr_board_t board, cydr_panel_t panel);
+    bool     _begin(cydr_board_t board, cydr_panel_t panel);
     uint16_t _readChannel(uint8_t cmd);
     uint16_t _transferByteAndRead12(uint8_t cmd);
     uint16_t _readChannelMedian(uint8_t cmd);
     bool     _readRawSample(uint16_t &rawX, uint16_t &rawY);
+    bool     _gt911Read(uint16_t &rawX, uint16_t &rawY);
+    bool     _gtReg(uint16_t reg, uint8_t *buf, int n);       // takes cydr_touchI2cLock()
+    bool     _gtRegLocked(uint16_t reg, uint8_t *buf, int n);
+    bool     _cst820Read(uint16_t &rawX, uint16_t &rawY);
+    bool     _cstReg(uint8_t reg, uint8_t *buf, int n);       // takes cydr_touchI2cLock()
+    bool     _cstRegLocked(uint8_t reg, uint8_t *buf, int n);
 };

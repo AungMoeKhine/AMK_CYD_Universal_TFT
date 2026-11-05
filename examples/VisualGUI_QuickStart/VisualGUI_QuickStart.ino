@@ -22,8 +22,8 @@
 #include "ui.h"
 
 // Global driver instances
-AMK_CYD_display display;
-AMK_CYD_touch   touch;
+AMK_display display;
+AMK_touch   touch;
 TFT_eSPI        tft;
 AMK_CYD_LVGL    lvgl;
 
@@ -90,7 +90,9 @@ void setup() {
     // 2. Initialize touch and sync rotation
     touch.begin(display);
     touch.setRotation(3);
-    touch.loadCalibration(); // Loads calibrated coordinates from NVS flash
+    if (!touch.capacitive()) {
+        touch.loadCalibration(); // Loads calibrated coordinates from NVS flash
+    }
 
     // 3. Initialize LVGL bridge (Allocates DMA double buffers in internal SRAM)
     if (!lvgl.begin(display, touch)) {

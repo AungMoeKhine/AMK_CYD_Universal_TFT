@@ -1,14 +1,14 @@
 # AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.5.0-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.5.1-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD%20%2B%20S3%20RGB-2.4%22%20to%207.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
 
-**Universal standalone TFT, touch, sprite, and visual GUI driver for the entire ESP32 Cheap Yellow Display (CYD) family and ESP32-S3 Parallel RGB displays.**
+**Universal standalone TFT, touch, sprite, and visual GUI driver for the entire ESP32 Cheap Yellow Display (CYD) family (resistive & capacitive) and ESP32-S3 Parallel RGB displays.**
 
-Zero configuration required. No editing User_Setup.h, no hunting down obscure pinouts, and no recompiling for different screen variants. Works out of the box on **2.4", 2.8", 3.2", 3.5", and 4.0"** CYD resistive touch boards with runtime auto-detection, as well as **4.3", 5.0", and 7.0"** ESP32-S3 parallel RGB displays with GT911 capacitive multi-touch.
+Zero configuration required. No editing User_Setup.h, no hunting down obscure pinouts, and no recompiling for different screen variants. Works out of the box on **2.4", 2.8", 3.2", 3.5", and 4.0"** CYD resistive and capacitive touch boards with runtime auto-detection, as well as **4.3", 5.0", and 7.0"** ESP32-S3 parallel RGB displays with GT911 capacitive multi-touch.
 
 ---
 
@@ -97,7 +97,20 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 
 ## 📋 Supported Hardware Matrix
 
-### 1. ESP32 Cheap Yellow Display (CYD) Series (SPI + Resistive Touch)
+* **Dual Touch Controller Engine (Resistive XPT2046 + Capacitive GT911 / CST820)**:
+  * Runtime auto-probing on I2C (SDA: 33, SCL: 32) for capacitive touch chips (GT911 at 0x5D/0x14, CST820 at 0x15).
+  * Automatically falls back to high-speed SPI XPT2046 resistive touch when capacitive is not present.
+  * Completely unified API: 	ft.getTouch(&x, &y) and 	ouch.read(x, y) work identically across resistive and capacitive models!
+* **Half-Duplex 3-Wire SPI Read on GPIO13 (SDA)**:
+  * Automatically probes panel ID registers bidirectionally over GPIO13 for panels lacking SDO wiring (e.g. ESP32-2432S032 ST7789), eliminating blank or distorted screens.
+* **Persistent NVS Hardware Overrides (cydrforce)**:
+  * Easily save hardware adjustments into ESP32 NVS flash (cydr_saveOverrides) for tricky Chinese clone boards: panel type, color order (RGB/BGR), inversion, MADCTL mirroring, SPI clock (40MHz / 27MHz / 20MHz), backlight pin, touch axes, and RGB LED pins.
+* **Bus Contention Protection (	ouchI2cLock)**:
+  * Prevents SPI display readbacks from colliding with I2C touch communications when GPIO33 is shared between I2C SDA and unpopulated XPT2046 CS lines.
+* **Display Framebuffer Readback Detection (cydr_readback_t)**:
+  * Probes and verifies whether pixel memory can be read back over GPIO12 (MISO), GPIO13 (half-duplex SDA), or unavailable (	ft.isReadbackSupported(), 	ft.getReadbackName()).
+
+### 1. ESP32 Cheap Yellow Display (CYD) Series (Resistive & Capacitive Touch)
 
 | CYD Model | Screen Size | Resolution | Controller | Touch Bus | Backlight Pin | Red LED Pin |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -109,6 +122,11 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 | **ESP32-035** (3.5" USB-C + Batt) | 3.5" | 320x480 | ST7796 | Shared HSPI Bus (X/Y Mirror) | GPIO 27 | GPIO 4 |
 | **ESP32-32E 3.5"** | 3.5" | 320x480 | ST7796 | Shared HSPI Bus | GPIO 27 | GPIO 22 |
 | **ESP32-32E 4.0"** | 4.0" | 320x480 | ST7796 | Shared HSPI Bus | GPIO 27 | GPIO 22 |
+| **ESP32-2432S032** (3.2" CYD) | 3.2" | 240x320 | ST7789 (SDA half-duplex) | Shared HSPI Bus (XPT2046) | GPIO 27 | GPIO 4 |
+| **ESP32-2432S032C** (3.2" Capacitive) | 3.2" | 240x320 | ST7789 (SDA half-duplex) | I2C GT911 (SDA 33 / SCL 32) | GPIO 27 | GPIO 4 |
+| **ESP32-2432S024C** (2.4" Capacitive) | 2.4" | 240x320 | ILI9341 | I2C CST820 (SDA 33 / SCL 32) | GPIO 27 | GPIO 4 |
+| **Guition JC2432W328** (2.8" Capacitive) | 2.8" | 240x320 | ST7789 | I2C CST820 (SDA 33 / SCL 32) | GPIO 27 | GPIO 4 |
+| **ESP32-3248S035C** (3.5" Capacitive) | 3.5" | 320x480 | ST7796 | I2C GT911 (SDA 33 / SCL 32) | GPIO 27 | GPIO 4 |
 
 ### 2. ESP32-S3 Parallel RGB Series (16-bit RGB + GT911 Capacitive Touch)
 
@@ -659,6 +677,27 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 ---
 
 ## 📝 Release History & Changelog
+
+### v1.5.1
+* **Capacitive CYD & Dual Touch Controller Architecture**:
+  * Added native auto-probing and support for 5 new boards:
+    * **ESP32-2432S032**: 3.2" CYD ST7789 with half-duplex SDA SPI readback.
+    * **ESP32-2432S032C**: 3.2" CYD with GT911 capacitive touch on I2C (SDA: 33, SCL: 32).
+    * **ESP32-2432S024C**: 2.4" CYD with CST820 capacitive touch on I2C + ILI9341.
+    * **Guition JC2432W328**: 2.8" CYD with CST820 capacitive touch on I2C + ST7789.
+    * **ESP32-3248S035C**: 3.5" CYD with GT911 capacitive touch on I2C + ST7796.
+  * **Dual Touch Controller Engine**: Runtime auto-detection between XPT2046 resistive touch and GT911 / CST820 capacitive touch chips. Seamlessly unifies coordinates and rotations with zero code changes.
+* **Half-Duplex 3-Wire SPI Read on GPIO13 (SDA)**:
+  * Solved panel identification failure on CYD boards without SDO (GPIO12) lines by reading registers bidirectionally over GPIO13.
+* **Persistent NVS Hardware Overrides Engine (cydrforce)**:
+  * Store board-level corrections (panel type, color order, inversion, mirror bits, SPI clock, backlight pin, touch axes, and RGB LED pins) in ESP32 NVS flash, permanently correcting clone or uncatalogued boards via calibration.
+* **Bus Contention Protection (cydr_touchI2cLock / cydr_touchI2cUnlock)**:
+  * Prevents SPI display readbacks from colliding with I2C touch communications when GPIO33 is shared between I2C SDA and unpopulated XPT2046 CS lines.
+* **Display Framebuffer Readback Detection (cydr_readback_t)**:
+  * Added 	ft.isReadbackSupported() and 	ft.getReadbackName() to inspect hardware framebuffer readback capability (MISO, SDA, or None).
+* **Enhanced Touch Calibration & New Example**:
+  * Updated TouchCalibration with automatic capacitive touch detection (bypasses resistive 4-point calibration and jumps directly to interactive touch verification).
+  * Added new **BoardDetect** standalone diagnostic example tool.
 
 ### v1.5.0
 * **ESP32-S3 Parallel RGB & GT911 Capacitive Touch Architecture**:

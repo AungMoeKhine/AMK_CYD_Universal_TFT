@@ -18,7 +18,7 @@
 // Dynamic board detection based on hardware probing
 inline const char* getDetectedBoardName() {
   const char* m = display.modelName();
-  if (m && strcmp(m, "unknown") != 0) return m;
+  if (m && strcmp(m, "unknown") != 0 && strcmp(m, "CYDR_MODEL_UNKNOWN") != 0) return m;
   if (display.panel() == CYDR_PANEL_ST7796) return "CYD 3.5\" / 4.0\" (ST7796)";
   if (display.board() == CYDR_BOARD_SHARED_TOUCH) return "CYD 3.2\" (ST7789)";
   return (display.panel() == CYDR_PANEL_ILI9341) ? "CYD 2.8\" (ILI9341)" : "CYD 2.8\" (ST7789)";
@@ -29,8 +29,8 @@ inline const char* getDetectedBoardName() {
 #define CAL_BOOT_PIN      0
 
 // Driver objects
-AMK_CYD_display display;
-AMK_CYD_touch   touch;
+AMK_display display;
+AMK_touch   touch;
 TFT_eSPI        tft;
 
 // ── Custom Theme: High-Tech Deep Dark & Electric Cyan ─────────────────────────
@@ -745,6 +745,27 @@ void setup() {
 
   Serial.printf("\n=== Universal TouchCalibrate for %s (Rotation %d: %dx%d) ===\n",
                 getDetectedBoardName(), TARGET_ROTATION, SCRW, SCRH);
+
+  // If capacitive touch is detected (GT911 or CST820), resistive 4-point calibration is not needed
+  if (touch.capacitive()) {
+    Serial.printf("Capacitive touch detected (%s) - Factory calibrated. Jumping directly to interactive drawing test.\n", touch.chipName());
+    tft.fillScreen(C_BG);
+    tft.setTextColor(C_TEXT, C_BG);
+    tft.setTextDatum(MC_DATUM);
+
+    tft.setFreeFont(&FreeSansBold9pt7b);
+    tft.drawString("Capacitive Touch Active", SCRW / 2, SCRH / 2 - 25);
+
+    tft.setFreeFont(&FreeSans9pt7b);
+    char buf[80];
+    snprintf(buf, sizeof(buf), "Controller: %s | %s", touch.chipName(), getDetectedBoardName());
+    tft.drawString(buf, SCRW / 2, SCRH / 2 + 5);
+    tft.drawString("Factory calibrated: Entering test canvas...", SCRW / 2, SCRH / 2 + 30);
+    tft.setFreeFont(nullptr);
+    delay(1800);
+    drawStage3Canvas();
+    return;
+  }
 
   bool hasSavedCal = touch.loadCalibration();
   if (hasSavedCal) {

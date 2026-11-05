@@ -167,6 +167,8 @@ public:
     const char* panelName() const { return "ST7262"; }
     const char* modelName() const { return "ESP32-S3-RGB-800x480"; }
     const char* boardName() const { return "Waveshare/Sunton S3 RGB"; }
+    uint8_t diagonalTenths() const { return 70; }
+    const char* readbackName() const { return "Direct Framebuffer"; }
     uint8_t redLedPin() const { return 255; }
     uint8_t greenLedPin() const { return 255; }
     uint8_t blueLedPin() const { return 255; }

@@ -42,7 +42,7 @@ private:
     static void _disp_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map) {
         AMK_CYD_LVGL* instance = (AMK_CYD_LVGL*)lv_display_get_user_data(disp);
         if (instance && instance->_display) {
-            instance->_display->flushRegion(area->x1, area->y1, area->x2, area->y2, (uint16_t*)px_map);
+            instance->_display->flushRegion(area->x1, area->y1, area->x2, area->y2, (uint16_t*)px_map, true);
             // Wait for DMA hardware to complete before releasing buffer back to LVGL
             instance->_display->waitFlush();
         }
@@ -70,7 +70,7 @@ private:
     static void _disp_flush_cb(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
         AMK_CYD_LVGL* instance = (AMK_CYD_LVGL*)disp->user_data;
         if (instance && instance->_display) {
-            instance->_display->flushRegion(area->x1, area->y1, area->x2, area->y2, (uint16_t*)color_p);
+            instance->_display->flushRegion(area->x1, area->y1, area->x2, area->y2, (uint16_t*)color_p, true);
             // Wait for DMA hardware to complete before releasing buffer back to LVGL
             instance->_display->waitFlush();
         }
