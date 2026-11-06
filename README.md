@@ -681,6 +681,7 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 | Example | Description |
 |:---|:---|
 | **`Universal_AutoConfig`** | **Master Auto-Configuration Template [NEW in v1.6.0]**. Demonstrates 1-line `tft.autoSetup(3)`, adaptive multi-point calibration (`tft.autoCalibrate()`), responsive hardware telemetry cards, 7-color verification bar, and live touch tracking with RGB LED sync. |
+| **`CYD_Universal_AutoConfig`** | Reference implementation of the hardware auto-detection engine, illustrating explicit step-by-step probing mechanics, LDR auto-dimming filter math, and Active-LOW LED control. |
 | **`QuickStart`** | Minimal boilerplate template showcasing hardware auto-detection, status logging, and a simple touch dot drawing loop. |
 | **`BoardDetect`** | Standalone hardware detection and diagnostic tool. Probes board model, panel type, resolution, diagonal size, touch architecture, readback channel, and RGB LED pins. |
 | **`BasicTouchDemo`** | Full touch diagnostic canvas showing real-time `(X, Y)` touch coordinates, crosshair tracking, pressure values, and screen boundaries. |
