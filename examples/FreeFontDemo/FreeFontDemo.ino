@@ -445,21 +445,12 @@ void setup() {
   delay(100);
   Serial.println("\n[AMK_CYD_Universal_TFT] Starting FreeFontDemo...");
 
-  // 1. Initialize Display (Rotation 3: Landscape, USB left, SD card top)
-  tft.init();
-  tft.setRotation(3);
+  // 1. Universal 1-line auto-setup (v1.6.0)
+  tft.autoSetup(3);
+  tft.autoCalibrate(); // Auto-calibrates uncalibrated resistive touch (< 1 ms if already saved; 0 ms if capacitive)
   SCRW = tft.width();
   SCRH = tft.height();
-  tft.setBacklight(100);
   tft.fillScreen(C_BG);
-
-  // 2. Initialize Touch Controller
-  touch.begin(display);
-  touch.setRotation(3);
-  if (!touch.capacitive()) {
-    touch.loadCalibration();
-    touch.loadFilters();
-  }
 
   // 3. Create Off-Screen Sprite Buffer (16-bit color in RAM)
   telemetrySpr.setColorDepth(16);
@@ -470,6 +461,8 @@ void setup() {
 }
 
 void loop() {
+  tft.adjustBrightness(); // Built-in ambient light auto-dimming
+
   uint16_t tx = 0, ty = 0;
   bool isPressed = touch.read(tx, ty);
 

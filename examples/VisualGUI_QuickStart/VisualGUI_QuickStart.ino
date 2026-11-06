@@ -82,17 +82,8 @@ void setup() {
     delay(200);
     Serial.println("\n[AMK_CYD_Universal_TFT] Starting VisualGUI_QuickStart...");
 
-    // 1. Initialize display (auto-probes panel: ST7789, ILI9341, ST7796)
-    tft.init();
-    tft.setRotation(3);      // Standard Landscape (Rotation 3)
-    tft.setBacklight(100);   // Default full brightness
-
-    // 2. Initialize touch and sync rotation
-    touch.begin(display);
-    touch.setRotation(3);
-    if (!touch.capacitive()) {
-        touch.loadCalibration(); // Loads calibrated coordinates from NVS flash
-    }
+    // 1. Universal 1-line auto-setup (v1.6.0)
+    tft.autoSetup(3);
 
     // 3. Initialize LVGL bridge (Allocates DMA double buffers in internal SRAM)
     if (!lvgl.begin(display, touch)) {
@@ -102,10 +93,6 @@ void setup() {
 
     // 4. Initialize Visual Studio UI!
     ui_init();
-
-    // Configure onboard RGB LED pin as output
-    pinMode(display.redLedPin(), OUTPUT);
-    digitalWrite(display.redLedPin(), HIGH); // Default OFF (active-low)
 
     Serial.println("[AMK_CYD_Universal_TFT] Visual GUI ready!");
 }

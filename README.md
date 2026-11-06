@@ -1,7 +1,7 @@
 # AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.5.1-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.6.0-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD%20%2B%20S3%20RGB-2.4%22%20to%207.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
@@ -32,6 +32,26 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 
 ## 🚀 Key Features
 
+* 🪄 **1-Line Universal Hardware Auto-Setup (`tft.autoSetup()`) [NEW in v1.6.0]**:
+  * Eliminates 30–50 lines of duplicate hardware initialization boilerplate across all sketches!
+  * Single call (`tft.autoSetup(3)`) automatically probes and configures:
+    * **Display Panel & Bus**: Calls `init()`, sets rotation, enforces `setSwapBytes(true)`, and verifies MADCTL color mapping.
+    * **Backlight Pin & 8-Bit PWM**: Dynamically detects GPIO 21 vs GPIO 27 with zero hardcoded pins and zero fallback pins.
+    * **LDR Ambient Light Sensor**: Detects GPIO 34 role, configures input, and primes the 10-read moving average filter before the panel turns on.
+    * **Active-LOW RGB LED**: Detects Red (GPIO 4 vs 22), Green, and Blue pins, initializes them OFF (`HIGH`), and runs an instant R-G-B boot sequence.
+    * **Touch Subsystem**: Probes Resistive (XPT2046) vs Capacitive (GT911/CST820), syncs rotation, and auto-loads persistent NVS calibration.
+    * **Serial Diagnostic Audit**: Automatically prints a full hardware specification report at 115200 baud.
+* 🎯 **Adaptive Multi-Point Statistical Touch Calibration (`tft.autoCalibrate()`) [NEW in v1.6.0]**:
+  * No separate calibration sketch required! Built directly into the library.
+  * **Zero boot delay (< 1 ms)** if calibration is already stored in NVS flash.
+  * **Zero boot delay (0 ms)** if capacitive touch (CST820 / GT911) is detected.
+  * **Adaptive 12-to-30 Point Grid ($4 \times 3$ to $6 \times 5$)**: Runs multi-sample ADC averaging with raw jitter rejection (`JITTER_RAW = 130`, `MIN_SAMPLES = 8`), statistical 2D linear regression (`linfit`), RMS error verification (`ACCEPT_RMS <= 6.0 px`), and hardware mirroring compensation.
+  * **Automatic NVS Flash Persistence**: Commits calibrated boundaries and filter parameters to ESP32 NVS flash so subsequent boots load instantly.
+  * **Hardware BOOT Pin Override**: Holding the CYD `BOOT` button (GPIO 0) at startup forces re-calibration on demand.
+* 💡 **Built-In Ambient Light Auto-Dimming (`tft.adjustBrightness()`) [NEW in v1.6.0]**:
+  * Execute `tft.adjustBrightness()` as the first line of `void loop()` for instant, flicker-free auto-dimming with an integrated 10-sample moving average buffer and 4-unit hysteresis deadband.
+* 🚥 **Built-In Universal RGB LED Helpers [NEW in v1.6.0]**:
+  * Drive the onboard RGB LED effortlessly without worrying about Active-LOW polarity or pin variants: `tft.setRgbLed(r, g, b)`, `tft.turnLedOff()`, `tft.flashLed()`.
 * 🔍 **Runtime Hardware Auto-Probing**:
   * Detects board wiring automatically via passive pull-down probing on the backlight pins.
   * Probes panel identity registers (SDO on GPIO12) at boot to identify ILI9341, ST7789, or ST7796.
@@ -220,20 +240,14 @@ TFT_eSPI    tft;
 void setup() {
   Serial.begin(115200);
 
-  // 1. Initialize display (auto-detects board wiring and panel)
-  tft.init();
-  tft.setRotation(3);       // Landscape (Rotation 3: USB left, SD card top)
-  tft.setBacklight(100);    // 0 to 100% PWM brightness
+  // 1-LINE UNIVERSAL HARDWARE AUTO-SETUP (Rotation 3 = Landscape USB left)
+  // Auto-probes display, backlight PWM, LDR light sensor, active-LOW RGB LED, and touch!
+  tft.autoSetup(3);
 
-  // 2. Initialize touch and sync rotation
-  touch.begin(display);
-  touch.setRotation(3);
+  // Auto-calibrates uncalibrated resistive touch (< 1 ms if already saved; 0 ms if capacitive)
+  tft.autoCalibrate();
 
-  // 3. Load saved calibration (CYD resistive) or use factory calibration (S3 capacitive)
-  touch.loadCalibration();
-  touch.loadFilters();
-
-  // 4. Draw UI
+  // Draw UI
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_GREEN, TFT_BLACK);
   tft.setTextDatum(MC_DATUM);
@@ -247,6 +261,9 @@ void setup() {
 }
 
 void loop() {
+  // First-line execution for smooth ambient light auto-dimming
+  tft.adjustBrightness();
+
   uint16_t x, y;
   // Read touch input
   if (tft.getTouch(&x, &y)) {
@@ -663,7 +680,9 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 
 | Example | Description |
 |:---|:---|
+| **`Universal_AutoConfig`** | **Master Auto-Configuration Template [NEW in v1.6.0]**. Demonstrates 1-line `tft.autoSetup(3)`, adaptive multi-point calibration (`tft.autoCalibrate()`), responsive hardware telemetry cards, 7-color verification bar, and live touch tracking with RGB LED sync. |
 | **`QuickStart`** | Minimal boilerplate template showcasing hardware auto-detection, status logging, and a simple touch dot drawing loop. |
+| **`BoardDetect`** | Standalone hardware detection and diagnostic tool. Probes board model, panel type, resolution, diagonal size, touch architecture, readback channel, and RGB LED pins. |
 | **`BasicTouchDemo`** | Full touch diagnostic canvas showing real-time `(X, Y)` touch coordinates, crosshair tracking, pressure values, and screen boundaries. |
 | **`ButtonDemo`** | Drop-in Bodmer `TFT_eSPI_Button` showcase. Features interactive touch buttons with press/release states, inverted click feedback, and hardware control (RGB LED & backlight toggle). |
 | **`GradientDemo`** | Showcase of linear color gradients (`fillRectVGradient`, `fillRectHGradient`) and alpha blending (`alphaBlend`). Features a sleek multi-card dashboard, frosted-glass HUD strip, theme palette cycling via touch, and onboard RGB LED sync. |
@@ -677,6 +696,40 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 ---
 
 ## 📝 Release History & Changelog
+
+### v1.6.0 (Major Milestone Release)
+* 🪄 **1-Line Universal Hardware Auto-Setup Engine (`tft.autoSetup()`)**:
+  * Eliminates 30–50 lines of duplicate hardware initialization boilerplate across all sketches!
+  * Single call (`tft.autoSetup(rotation)`) completely initializes the board at runtime:
+    * **Display Panel & Bus**: Calls `init()`, sets rotation, enforces `setSwapBytes(true)`, and verifies MADCTL color mapping.
+    * **Backlight Pin & 8-Bit PWM**: Dynamically detects GPIO 21 vs GPIO 27 with zero hardcoded pins and zero fallback pins.
+    * **LDR Ambient Light Sensor**: Detects GPIO 34 role, configures input, and primes the 10-read moving average filter before the panel turns on.
+    * **Active-LOW RGB LED**: Detects Red (GPIO 4 vs 22), Green, and Blue pins, initializes them OFF (`HIGH`), and runs an instant R-G-B boot test sequence.
+    * **Touch Subsystem**: Probes Resistive (XPT2046) vs Capacitive (GT911/CST820), syncs rotation, and auto-loads persistent NVS calibration.
+    * **Serial Diagnostic Audit**: Automatically prints a full hardware specification report at 115200 baud (`printHardwareReport()`).
+* 🎯 **Adaptive Multi-Point Statistical Touch Calibration Engine (`tft.autoCalibrate()`)**:
+  * Eliminates the need to flash a separate calibration sketch! Built directly into the library.
+  * **Zero Boot Overhead (< 1 ms)** if calibration is already stored in NVS flash.
+  * **Zero Boot Overhead (0 ms)** if capacitive touch (CST820 / GT911) is detected.
+  * **Adaptive 12-to-30 Point Grid ($4 \times 3$ to $6 \times 5$)**: Runs multi-sample ADC averaging with raw jitter rejection (`JITTER_RAW = 130`, `MIN_SAMPLES = 8`) to reject shaky hand movements.
+  * Full-screen crosshair guides with sub-pixel visual accuracy.
+  * Independent 2D Linear Regression (`linfit`) mapped to native panel dimensions with hardware mirror compensation (`mirrorsX()`, `mirrorsY()`).
+  * Strict Statistical RMS and Max Error verification (`ACCEPT_RMS <= 6.0 px`, `ACCEPT_MAX <= 16.0 px`).
+  * Automatically commits calibrated boundaries and filter parameters to ESP32 NVS flash (`touch.saveCalibration()` + `touch.saveFilters()`) so subsequent boots load instantly.
+  * **Hardware BOOT Pin Override**: Holding the CYD `BOOT` button (GPIO 0) at startup forces re-calibration on demand.
+  * Upgraded legacy `calibrateTouch()` API to route directly through the new high-precision multi-point engine.
+  * Added `hasTouchCalibration()` inspection helper.
+* 💡 **Built-In Ambient Light Auto-Dimming (`tft.adjustBrightness()`)**:
+  * Single call as the first line of `void loop()` guarantees smooth, flicker-free auto-dimming with an integrated 10-sample moving average buffer and 4-unit hysteresis deadband.
+  * Fully non-blocking and immune to network delays or client handshakes.
+* 🚥 **Built-In Universal RGB LED Helpers (Active-LOW Polarity)**:
+  * Drive onboard RGB LEDs effortlessly without worrying about Active-LOW polarity or pin variants: `tft.setRgbLed(r, g, b)`, `tft.turnLedOff()`, `tft.flashLed(r, g, b, ms)`, `tft.flashLedSequence()`.
+* 🔍 **Comprehensive Hardware Query Getters**:
+  * Added direct hardware query methods: `redLedPin()`, `greenLedPin()`, `blueLedPin()`, `hasLdrSensor()`, `isBattery()`, `readBatteryVoltage()`, `modelName()`, `panelName()`, `diagonalTenths()`, `nativeWidth()`, `nativeHeight()`.
+* 📦 **New Master Example Sketch (`Universal_AutoConfig`)**:
+  * Added `Universal_AutoConfig.ino` master template showcasing pure 1-line auto-probing, responsive UI card telemetry, 7-color verification swatches, interactive touch drawing canvas, and real-time RGB LED synchronization.
+* 🔄 **Standardized All Example Sketches & Projects**:
+  * Updated all bundled example sketches, `Mini_Weather_Station_2.8_CYD`, and `CYD_FlipClock_Universal_Modified` to adhere strictly to the new v1.6.0 hardware standards.
 
 ### v1.5.1
 * **Capacitive CYD & Dual Touch Controller Architecture**:

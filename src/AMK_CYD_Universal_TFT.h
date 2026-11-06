@@ -276,6 +276,20 @@ protected:
     int8_t   _glyph_ab    = 0;
     int8_t   _glyph_bb    = 0;
 
+    // Hardware Auto-Setup & Driver State (v1.6.0)
+    bool     _autoBrightnessActive  = true;
+    uint8_t  _activeBacklightLevel  = 160;
+    int      _lastAppliedBrightness = -1;
+    bool     _hasLdrSensor          = true;
+    bool     _isBattery             = false;
+    int8_t   _redPin                = -1;
+    int8_t   _greenPin              = -1;
+    int8_t   _bluePin               = -1;
+    int      _ldrReadings[10]       = {0};
+    int      _ldrReadIndex          = 0;
+    long     _ldrTotal              = 0;
+    unsigned long _lastLdrSampleTime= 0;
+
     virtual void _pixel(int32_t x, int32_t y, uint16_t color) {
 #if defined(AMK_BACKEND_ESP32_S3)
         display.drawPixel(x, y, color);
@@ -462,6 +476,504 @@ public:
 #endif
     }
     void begin() { init(); }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ── Universal Hardware Auto-Setup Engine (v1.6.0) ──────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+    void autoSetup(uint8_t rotation = 3, bool autoCalibrateIfUnset = false, bool verboseReport = true) {
+        // 1. Initialize Display Subsystem & Hardware Probing
+        init();
+        setRotation(rotation);
+        setSwapBytes(true); // Maintain RGB565 byte order for sprites & bitmaps
+
+        // 2. Auto-Detect Backlight Pin & Configure 8-Bit PWM (Zero hardcoded pins)
+        uint8_t blPin = backlightPin();
+        if (blPin > 0) {
+            pinMode(blPin, OUTPUT);
+            analogWriteResolution(blPin, 8);
+            analogWrite(blPin, _activeBacklightLevel);
+        }
+
+        // 3. Auto-Detect GPIO 34 Role (LDR Light Sensor vs Battery Divider)
+#if !defined(AMK_BACKEND_ESP32_S3)
+        int8_t gpio34Role = display.gpio34IsBattery();
+        _isBattery = (gpio34Role == 1);
+        _hasLdrSensor = (gpio34Role != 1);
+        if (_hasLdrSensor) {
+            pinMode(34, INPUT);
+            // Prime the 10-read moving average filter at boot per hardware standard
+            for (int i = 0; i < 10; i++) {
+                adjustBrightness();
+                delay(10);
+            }
+        }
+#else
+        _hasLdrSensor = false;
+        _isBattery = false;
+#endif
+
+        // 4. Auto-Detect RGB LED Pins & Initialize Active-LOW States
+#if !defined(AMK_BACKEND_ESP32_S3)
+        _redPin   = display.redLedPin();
+        _greenPin = display.greenLedPin();
+        _bluePin  = display.blueLedPin();
+
+        if (_redPin >= 0)   { pinMode(_redPin, OUTPUT);   digitalWrite(_redPin, HIGH); }
+        if (_greenPin >= 0) { pinMode(_greenPin, OUTPUT); digitalWrite(_greenPin, HIGH); }
+        if (_bluePin >= 0)  { pinMode(_bluePin, OUTPUT);  digitalWrite(_bluePin, HIGH); }
+
+        flashLedSequence();
+#endif
+
+        // 5. Auto-Detect & Initialize Touch Controller
+#ifndef AMK_CYD_NO_GLOBAL_TOUCH
+        touch.begin(display);
+        touch.setRotation(rotation);
+        if (!touch.capacitive()) {
+            touch.loadCalibration();
+            touch.loadFilters();
+            if (autoCalibrateIfUnset && !hasTouchCalibration()) {
+                autoCalibrate(false);
+            }
+        }
+#endif
+
+        // 6. Print Hardware Diagnostic Audit Report if requested
+        if (verboseReport) {
+            printHardwareReport();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ── Adaptive Multi-Point Statistical Calibration Engine (v1.6.0) ───────────
+    // ═══════════════════════════════════════════════════════════════════════════
+    bool hasTouchCalibration() {
+#ifndef AMK_CYD_NO_GLOBAL_TOUCH
+        if (touch.capacitive()) return true;
+        return touch.loadCalibration();
+#else
+        return true;
+#endif
+    }
+
+    bool autoCalibrate(bool force = false, bool canSkipWithBoot = true) {
+#ifndef AMK_CYD_NO_GLOBAL_TOUCH
+        if (touch.capacitive()) {
+            Serial.printf("[AMK Touch] Capacitive controller detected (%s) - factory digital calibration (0 ms bypass).\n", touch.chipName());
+            return true;
+        }
+
+        // Check if BOOT button (GPIO 0) is being held down at power-up/call
+        pinMode(0, INPUT_PULLUP);
+        if (digitalRead(0) == LOW) {
+            force = true;
+            Serial.println("[AMK Touch] BOOT pin (GPIO 0) held - Forcing interactive multi-point calibration!");
+        }
+
+        // Fast-path bypass if already calibrated and not forced
+        if (!force && touch.loadCalibration()) {
+            touch.loadFilters();
+            Serial.println("[AMK Touch] Active calibration loaded from NVS flash (< 1 ms).");
+            return true;
+        }
+
+        Serial.println("\n[AMK Touch] =====================================================");
+        Serial.printf("[AMK Touch] Launching Adaptive Multi-Point Calibration Engine\n");
+        Serial.printf("[AMK Touch] Board: %s | Display: %dx%d (Rot %d)\n",
+                      display.modelName(), width(), height(), getRotation());
+        Serial.println("[AMK Touch] =====================================================");
+
+        // Turn backlight to full brightness for crystal-clear crosshair viewing
+        uint8_t blPin = backlightPin();
+        if (blPin > 0) {
+            pinMode(blPin, OUTPUT);
+            analogWrite(blPin, 255);
+        }
+
+        // Clear touch buffer / wait release
+        uint16_t ra, rb;
+        uint32_t lastDown = millis();
+        while (millis() - lastDown < 150) {
+            if (touch.readRaw(ra, rb)) lastDown = millis();
+            delay(5);
+        }
+
+        const int scrW = width();
+        const int scrH = height();
+        const int targetRot = getRotation();
+        int natW = touch.nativeWidth();
+        int natH = touch.nativeHeight();
+        if (natW <= 0) natW = 240;
+        if (natH <= 0) natH = 320;
+
+        const int MAXPTS = 30;
+        int gx[MAXPTS], gy[MAXPTS];
+        float rawXs[MAXPTS], rawYs[MAXPTS];
+        float natX[MAXPTS], natY[MAXPTS];
+
+        const int cols[] = {4, 5, 6};
+        const int rows[] = {3, 4, 5};
+        const float ACCEPT_RMS = 6.0f;
+        const float ACCEPT_MAX = 16.0f;
+        const int JITTER_RAW = 130;
+        const int MIN_SAMPLES = 8;
+
+        uint16_t xMin = 0, xMax = 0, yMin = 0, yMax = 0;
+        float finalRms = 0.0f, finalMaxErr = 0.0f;
+        bool skipped = false;
+
+        auto linfitCalc = [](const float *I, const float *D, int n, float &a, float &b) {
+            float sI = 0, sD = 0, sII = 0, sID = 0;
+            for (int i = 0; i < n; i++) {
+                sI  += I[i];
+                sD  += D[i];
+                sII += I[i] * I[i];
+                sID += I[i] * D[i];
+            }
+            float den = n * sII - sI * sI;
+            b = (den != 0.0f) ? (n * sID - sI * sD) / den : 0.0f;
+            a = (sD - b * sI) / n;
+        };
+
+        auto screenToNativeMap = [](int sx, int sy, int rot, int nativeW, int nativeH, float &px, float &py) {
+            int W = nativeW - 1;
+            int H = nativeH - 1;
+            uint8_t r = cydr_normalize_rotation(rot);
+            switch (r) {
+                case 0: px = sx;     py = sy;     break;
+                case 1: px = W - sy; py = sx;     break;
+                case 2: px = W - sx; py = H - sy; break;
+                case 3: px = sy;     py = H - sx; break;
+                default: px = sx;    py = sy;     break;
+            }
+        };
+
+        auto nativeToScreenMap = [](float px, float py, int rot, int nativeW, int nativeH, float &sx, float &sy) {
+            int W = nativeW - 1;
+            int H = nativeH - 1;
+            uint8_t r = cydr_normalize_rotation(rot);
+            switch (r) {
+                case 0: sx = px;     sy = py;     break;
+                case 1: sx = py;     sy = W - px; break;
+                case 2: sx = W - px; sy = H - py; break;
+                case 3: sx = H - py; sy = px;     break;
+                default: sx = px;    sy = py;     break;
+            }
+        };
+
+        auto clampVal = [](float v) -> uint16_t {
+            if (v < 0.0f) return 0;
+            if (v > 4095.0f) return 4095;
+            return (uint16_t)(v + 0.5f);
+        };
+
+        auto drawCross = [&](int cx, int cy, uint16_t lineCol, uint16_t centerCol) {
+            drawFastHLine(0, cy - 1, scrW, lineCol);
+            drawFastHLine(0, cy,     scrW, lineCol);
+            drawFastHLine(0, cy + 1, scrW, lineCol);
+            drawFastVLine(cx - 1, 0, scrH, lineCol);
+            drawFastVLine(cx,     0, scrH, lineCol);
+            drawFastVLine(cx + 1, 0, scrH, lineCol);
+            fillRect(cx - 4, cy - 4, 9, 9, centerCol);
+        };
+
+        for (int t = 0; t < 3; t++) {
+            int numCols = cols[t];
+            int numRows = rows[t];
+            int MX = scrW / 10;
+            int MY = scrH / 10;
+            int totalPts = 0;
+
+            for (int r = 0; r < numRows; r++) {
+                for (int c = 0; c < numCols; c++) {
+                    gx[totalPts] = (numCols <= 1) ? scrW / 2 : MX + c * (scrW - 1 - 2 * MX) / (numCols - 1);
+                    gy[totalPts] = (numRows <= 1) ? scrH / 2 : MY + r * (scrH - 1 - 2 * MY) / (numRows - 1);
+                    totalPts++;
+                }
+            }
+
+            if (t > 0) {
+                fillScreen(TFT_BLACK);
+                setTextDatum(MC_DATUM);
+                setTextColor(TFT_ORANGE, TFT_BLACK);
+                drawString("Fit error high - escalating grid...", scrW / 2, scrH / 2 - 10, 2);
+                char errBuf[64];
+                snprintf(errBuf, sizeof(errBuf), "RMS: %.1f px | Max: %.1f px", finalRms, finalMaxErr);
+                drawString(errBuf, scrW / 2, scrH / 2 + 10, 2);
+                delay(1200);
+            }
+
+            for (int i = 0; i < totalPts; i++) {
+                bool pointCaptured = false;
+                while (!pointCaptured) {
+                    fillScreen(TFT_BLACK);
+                    setTextDatum(TC_DATUM);
+                    setTextColor(TFT_CYAN, TFT_BLACK);
+                    drawString("AMK TOUCH CALIBRATION", scrW / 2, 6, 2);
+
+                    char buf[64];
+                    snprintf(buf, sizeof(buf), "Point %d of %d - Tap & hold crosshair", i + 1, totalPts);
+                    setTextColor(TFT_WHITE, TFT_BLACK);
+                    drawString(buf, scrW / 2, 24, 1);
+
+                    if (canSkipWithBoot) {
+                        setTextDatum(BC_DATUM);
+                        setTextColor(0x7BEF, TFT_BLACK); // Grey
+                        drawString("Press BOOT button to skip", scrW / 2, scrH - 4, 1);
+                    }
+
+                    drawCross(gx[i], gy[i], TFT_WHITE, TFT_RED);
+
+                    // Wait release
+                    lastDown = millis();
+                    while (millis() - lastDown < 100) {
+                        if (touch.readRaw(ra, rb)) lastDown = millis();
+                        delay(5);
+                    }
+
+                    // Wait for touch or skip
+                    while (!touch.readRaw(ra, rb)) {
+                        if (canSkipWithBoot && digitalRead(0) == LOW) {
+                            skipped = true;
+                            break;
+                        }
+                        delay(5);
+                    }
+                    if (skipped) break;
+
+                    // Sample for 300 ms
+                    uint32_t sx = 0, sy = 0;
+                    int nSamples = 0;
+                    uint16_t minx = 4095, maxx = 0, miny = 4095, maxy = 0;
+                    uint32_t sampleStart = millis();
+                    while (millis() - sampleStart < 300) {
+                        if (touch.readRaw(ra, rb)) {
+                            sx += ra; sy += rb; nSamples++;
+                            if (ra < minx) minx = ra; if (ra > maxx) maxx = ra;
+                            if (rb < miny) miny = rb; if (rb > maxy) maxy = rb;
+                        }
+                        delay(8);
+                    }
+
+                    // Wait release
+                    lastDown = millis();
+                    while (millis() - lastDown < 100) {
+                        if (touch.readRaw(ra, rb)) lastDown = millis();
+                        delay(5);
+                    }
+
+                    if (nSamples < MIN_SAMPLES || (maxx - minx) > JITTER_RAW || (maxy - miny) > JITTER_RAW) {
+                        // Shaky touch
+                        drawCross(gx[i], gy[i], TFT_BLACK, TFT_BLACK);
+                        setTextDatum(TC_DATUM);
+                        setTextColor(TFT_YELLOW, TFT_BLACK);
+                        drawString("Too shaky! Hold stylus steady...", scrW / 2, 24, 1);
+                        flashLed(true, false, false, 80); // Red flash
+                        delay(700);
+                    } else {
+                        rawXs[i] = (float)sx / nSamples;
+                        rawYs[i] = (float)sy / nSamples;
+                        pointCaptured = true;
+                        flashLed(false, true, false, 30); // Green flash on valid point!
+                    }
+                }
+
+                if (skipped) break;
+            }
+
+            if (skipped) break;
+
+            // Compute Linear Regression
+            for (int i = 0; i < totalPts; i++) {
+                screenToNativeMap(gx[i], gy[i], targetRot, natW, natH, natX[i], natY[i]);
+            }
+
+            float ax, bx, ay, by;
+            linfitCalc(natX, rawXs, totalPts, ax, bx);
+            linfitCalc(natY, rawYs, totalPts, ay, by);
+
+            const bool mx = touch.mirrorsX(), my = touch.mirrorsY();
+            uint16_t rx0 = clampVal(ax), rx1 = clampVal(ax + bx * (natW - 1));
+            uint16_t ry0 = clampVal(ay), ry1 = clampVal(ay + by * (natH - 1));
+            xMin = mx ? rx1 : rx0;  xMax = mx ? rx0 : rx1;
+            yMin = my ? ry1 : ry0;  yMax = my ? ry0 : ry1;
+            if (xMin > xMax) std::swap(xMin, xMax);
+            if (yMin > yMax) std::swap(yMin, yMax);
+
+            float sumSq = 0.0f;
+            finalMaxErr = 0.0f;
+            for (int i = 0; i < totalPts; i++) {
+                float prePx  = (xMax != xMin) ? (rawXs[i] - xMin) * (natW - 1.0f) / (xMax - xMin) : 0;
+                float prePy  = (yMax != yMin) ? (rawYs[i] - yMin) * (natH - 1.0f) / (yMax - yMin) : 0;
+                float predPx = mx ? (natW - 1) - prePx : prePx;
+                float predPy = my ? (natH - 1) - prePy : prePy;
+
+                float predSx, predSy;
+                nativeToScreenMap(predPx, predPy, targetRot, natW, natH, predSx, predSy);
+
+                float ex = predSx - gx[i];
+                float ey = predSy - gy[i];
+                float err = sqrtf(ex * ex + ey * ey);
+                sumSq += err * err;
+                if (err > finalMaxErr) finalMaxErr = err;
+            }
+            finalRms = sqrtf(sumSq / totalPts);
+
+            if (finalRms <= ACCEPT_RMS && finalMaxErr <= ACCEPT_MAX) {
+                break; // Met strict statistical acceptance criteria
+            }
+        }
+
+        if (skipped) {
+            Serial.println("[AMK Touch] Multi-point calibration skipped by user.");
+            fillScreen(TFT_BLACK);
+            return false;
+        }
+
+        // Apply and permanently save calibration & standard filters to NVS
+        touch.setCalibration(xMin, xMax, yMin, yMax);
+        touch.saveCalibration();
+        touch.setFilters(25, 120);
+        touch.saveFilters();
+
+        Serial.println("\n[AMK Touch] =====================================================");
+        Serial.printf("[AMK Touch] Adaptive Multi-Point Calibration Saved to NVS Flash!\n");
+        Serial.printf("[AMK Touch] Bounds: X[%u..%u], Y[%u..%u] | RMS: %.2f px | Max Err: %.2f px\n",
+                      xMin, xMax, yMin, yMax, finalRms, finalMaxErr);
+        Serial.println("[AMK Touch] =====================================================\n");
+
+        // Visual confirmation on screen
+        fillScreen(TFT_BLACK);
+        fillRoundRect(16, scrH / 2 - 30, scrW - 32, 60, 8, 0x03E0); // Emerald Green
+        drawRoundRect(16, scrH / 2 - 30, scrW - 32, 60, 8, TFT_CYAN);
+        setTextDatum(MC_DATUM);
+        setTextColor(TFT_WHITE, 0x03E0);
+        drawString("CALIBRATION SAVED TO NVS!", scrW / 2, scrH / 2 - 10, 2);
+        char statsBuf[64];
+        snprintf(statsBuf, sizeof(statsBuf), "RMS Error: %.1f px | Max: %.1f px", finalRms, finalMaxErr);
+        drawString(statsBuf, scrW / 2, scrH / 2 + 12, 1);
+        flashLedSequence();
+        delay(1200);
+        fillScreen(TFT_BLACK);
+
+        return true;
+#else
+        return true;
+#endif
+    }
+
+    // ── Ambient Light Auto-Dimming ──
+    void adjustBrightness() {
+        uint8_t blPin = backlightPin();
+        if (blPin == 0 || !_autoBrightnessActive || !_hasLdrSensor) return;
+
+        if (millis() - _lastLdrSampleTime > 80) {
+            _lastLdrSampleTime = millis();
+            _ldrTotal = _ldrTotal - _ldrReadings[_ldrReadIndex];
+            _ldrReadings[_ldrReadIndex] = analogRead(34);
+            _ldrTotal = _ldrTotal + _ldrReadings[_ldrReadIndex];
+            _ldrReadIndex = (_ldrReadIndex + 1) % 10;
+
+            long average = _ldrTotal / 10;
+            int target = constrain(map(average, 0, 1024, 255, 20), 20, 255);
+
+            // 4-unit hysteresis deadband prevents light sensor flicker & PWM thrashing
+            if (abs(target - _lastAppliedBrightness) >= 4) {
+                _lastAppliedBrightness = target;
+                _activeBacklightLevel = target;
+                analogWrite(blPin, target);
+            }
+        }
+    }
+
+    void setAutoBrightness(bool enable) {
+        _autoBrightnessActive = enable;
+    }
+
+    bool getAutoBrightness() const {
+        return _autoBrightnessActive;
+    }
+
+    void setBacklightBrightness(uint8_t brightness) {
+        _activeBacklightLevel = brightness;
+        _autoBrightnessActive = false;
+        uint8_t blPin = backlightPin();
+        if (blPin > 0) {
+            analogWrite(blPin, brightness);
+        }
+    }
+
+    // ── Universal RGB LED Control (Active-LOW Polarity) ──
+    void setRgbLed(bool redOn, bool greenOn, bool blueOn) {
+        if (_redPin >= 0)   digitalWrite(_redPin,   redOn   ? LOW : HIGH);
+        if (_greenPin >= 0) digitalWrite(_greenPin, greenOn ? LOW : HIGH);
+        if (_bluePin >= 0)  digitalWrite(_bluePin,  blueOn  ? LOW : HIGH);
+    }
+
+    void turnLedOff() {
+        setRgbLed(false, false, false);
+    }
+
+    void flashLed(bool redOn, bool greenOn, bool blueOn, uint16_t durationMs = 60) {
+        setRgbLed(redOn, greenOn, blueOn);
+        delay(durationMs);
+        turnLedOff();
+    }
+
+    void flashLedSequence() {
+        setRgbLed(true, false, false); delay(60);
+        setRgbLed(false, true, false); delay(60);
+        setRgbLed(false, false, true); delay(60);
+        turnLedOff();
+    }
+
+    // ── Hardware Query Getters ──
+    int8_t redLedPin()    const { return _redPin; }
+    int8_t greenLedPin()  const { return _greenPin; }
+    int8_t blueLedPin()   const { return _bluePin; }
+    bool   hasLdrSensor() const { return _hasLdrSensor; }
+    bool   isBattery()    const { return _isBattery; }
+
+    float readBatteryVoltage() {
+        if (!_isBattery) return 0.0f;
+        int raw = analogRead(34);
+        return (raw / 4095.0f) * 3.3f * 2.0f; // cell/2 divider
+    }
+
+    const char* modelName() const { return display.modelName(); }
+    const char* panelName() const { return display.panelName(); }
+    uint8_t diagonalTenths() const { return display.diagonalTenths(); }
+    int16_t nativeWidth() const { return display.nativeWidth(); }
+    int16_t nativeHeight() const { return display.nativeHeight(); }
+
+    void printHardwareReport() {
+        Serial.println("\n=================================================================");
+        Serial.println("         AMK_CYD_Universal_TFT Universal Hardware Report         ");
+        Serial.println("=================================================================");
+        Serial.printf(" Board Model:         %s\n", display.modelName());
+        Serial.printf(" Display Panel:       %s\n", display.panelName());
+        Serial.printf(" Native Resolution:   %d x %d pixels\n", display.nativeWidth(), display.nativeHeight());
+        Serial.printf(" Active Resolution:   %d x %d pixels (Rotation %d)\n", width(), height(), getRotation());
+        if (display.diagonalTenths() > 0) {
+            Serial.printf(" Screen Diagonal:     %.1f inches\n", display.diagonalTenths() / 10.0f);
+        }
+        Serial.printf(" Backlight Pin:       GPIO %u (Auto-detected by library)\n", backlightPin());
+        Serial.printf(" Backlight Control:   8-bit PWM (Active Level: %d / 255)\n", _activeBacklightLevel);
+        Serial.printf(" Color Order:         %s (Factory MADCTL verified)\n", isBGR() ? "BGR" : "RGB");
+        Serial.printf(" 16-bit Byte Swap:    %s\n", getSwapBytes() ? "Enabled (true)" : "Disabled");
+#ifndef AMK_CYD_NO_GLOBAL_TOUCH
+        Serial.printf(" Touch Controller:    %s (%s)\n", touch.chipName(), touch.capacitive() ? "Capacitive I2C" : "Resistive SPI");
+#endif
+#if !defined(AMK_BACKEND_ESP32_S3)
+        Serial.printf(" Bus Architecture:    %s\n", display.board() == CYDR_BOARD_OWN_TOUCH ? "Dedicated Touch Bus" : "Shared Display SPI Bus");
+        Serial.printf(" Display Readback:    %s\n", getReadbackName());
+        Serial.printf(" RGB LED Pins:        Red: %d | Green: %d | Blue: %d (Active-LOW)\n", _redPin, _greenPin, _bluePin);
+        Serial.printf(" GPIO 34 Role:        %s\n", _isBattery ? "Battery Voltage Divider" : (_hasLdrSensor ? "Light Dependent Resistor (LDR)" : "Default"));
+        const char* hint = display.powerOffHint();
+        if (hint) Serial.printf(" Power-Off Hint:      %s\n", hint);
+#endif
+        Serial.println("=================================================================\n");
+    }
 
     void setRotation(uint8_t r) {
         display.setRotation(r);
@@ -1153,7 +1665,7 @@ public:
         if (!parameters) return;
         touch.setCalibration(parameters[0], parameters[1], parameters[2], parameters[3]);
     }
-    void calibrateTouch(uint16_t *parameters, uint16_t color_fg, uint16_t color_bg, uint8_t size) {
+    void calibrateTouch(uint16_t *parameters, uint16_t color_fg = TFT_WHITE, uint16_t color_bg = TFT_BLACK, uint8_t size = 15) {
         if (!parameters) return;
         if (touch.capacitive()) {
             parameters[0] = 0; parameters[1] = width();
@@ -1161,100 +1673,14 @@ public:
             parameters[4] = 0;
             return;
         }
-        int16_t w = width(), h = height();
-        const int16_t cx[4] = { (int16_t)size, (int16_t)(w - size), (int16_t)(w - size), (int16_t)size };
-        const int16_t cy[4] = { (int16_t)size, (int16_t)size, (int16_t)(h - size), (int16_t)(h - size) };
-        uint16_t rawX[4] = {0}, rawY[4] = {0};
-
-        for (int i = 0; i < 4; i++) {
-            fillCircle(cx[i], cy[i], size, color_fg);
-            fillCircle(cx[i], cy[i], size > 2 ? size - 2 : 1, color_bg);
-            fillCircle(cx[i], cy[i], 2, color_fg);
-
-            uint16_t rx, ry;
-            while (touch.readRaw(rx, ry)) delay(10);
-            while (!touch.readRaw(rx, ry)) delay(10);
-
-            uint32_t sumX = 0, sumY = 0;
-            int count = 0;
-            uint32_t start = millis();
-            while (millis() - start < 400) {
-                if (touch.readRaw(rx, ry)) {
-                    sumX += rx; sumY += ry;
-                    count++;
-                }
-                delay(10);
-            }
-            if (count > 0) {
-                rawX[i] = sumX / count;
-                rawY[i] = sumY / count;
-            }
-            fillCircle(cx[i], cy[i], size, color_bg);
-            delay(100);
-        }
-
-        uint16_t rx, ry;
-        while (touch.readRaw(rx, ry)) delay(10);
-
-        int16_t natW = touch.nativeWidth();
-        int16_t natH = touch.nativeHeight();
-        if (natW <= 0) natW = 240;
-        if (natH <= 0) natH = 320;
-        int16_t W = natW - 1;
-        int16_t H = natH - 1;
-
-        float natX[4] = {0}, natY[4] = {0};
-        for (int i = 0; i < 4; i++) {
-            float px, py;
-            switch (getRotation()) {
-                case 0: px = cx[i];     py = cy[i];     break;
-                case 1: px = W - cy[i]; py = cx[i];     break;
-                case 2: px = W - cx[i]; py = H - cy[i]; break;
-                case 3: px = cy[i];     py = H - cx[i]; break;
-                default: px = cx[i];    py = cy[i];     break;
-            }
-            natX[i] = px;
-            natY[i] = py;
-        }
-
-        auto linfit = [](const float *I, const uint16_t *D, int n, float &a, float &b) {
-            float sI = 0, sD = 0, sII = 0, sID = 0;
-            for (int i = 0; i < n; i++) {
-                sI += I[i];
-                sD += (float)D[i];
-                sII += I[i] * I[i];
-                sID += I[i] * (float)D[i];
-            }
-            float den = n * sII - sI * sI;
-            b = (den != 0.0f) ? (n * sID - sI * sD) / den : 0.0f;
-            a = (sD - b * sI) / n;
-        };
-
-        float ax, bx, ay, by;
-        linfit(natX, rawX, 4, ax, bx);
-        linfit(natY, rawY, 4, ay, by);
-
-        auto clampRaw = [](float v) -> uint16_t {
-            if (v < 0.0f) return 0;
-            if (v > 4095.0f) return 4095;
-            return (uint16_t)(v + 0.5f);
-        };
-
-        const bool mx = touch.mirrorsX(), my = touch.mirrorsY();
-        uint16_t rx0 = clampRaw(ax), rx1 = clampRaw(ax + bx * (natW - 1));
-        uint16_t ry0 = clampRaw(ay), ry1 = clampRaw(ay + by * (natH - 1));
-        uint16_t minX = mx ? rx1 : rx0, maxX = mx ? rx0 : rx1;
-        uint16_t minY = my ? ry1 : ry0, maxY = my ? ry0 : ry1;
-        if (minX > maxX) std::swap(minX, maxX);
-        if (minY > maxY) std::swap(minY, maxY);
-
-        parameters[0] = minX;
-        parameters[1] = maxX;
-        parameters[2] = minY;
-        parameters[3] = maxY;
+        autoCalibrate(true);
+        uint16_t x0, x1, y0, y1;
+        touch.getCalibration(x0, x1, y0, y1);
+        parameters[0] = x0;
+        parameters[1] = x1;
+        parameters[2] = y0;
+        parameters[3] = y1;
         parameters[4] = 0;
-
-        touch.setCalibration(minX, maxX, minY, maxY);
     }
 #endif
 

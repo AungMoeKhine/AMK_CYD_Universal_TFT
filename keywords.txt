@@ -40,6 +40,21 @@ cydr_power_key_t	KEYWORD1
 #######################################
 init	KEYWORD2
 begin	KEYWORD2
+autoSetup	KEYWORD2
+autoCalibrate	KEYWORD2
+hasTouchCalibration	KEYWORD2
+adjustBrightness	KEYWORD2
+setAutoBrightness	KEYWORD2
+getAutoBrightness	KEYWORD2
+setBacklightBrightness	KEYWORD2
+setRgbLed	KEYWORD2
+turnLedOff	KEYWORD2
+flashLed	KEYWORD2
+flashLedSequence	KEYWORD2
+printHardwareReport	KEYWORD2
+hasLdrSensor	KEYWORD2
+isBattery	KEYWORD2
+readBatteryVoltage	KEYWORD2
 tick	KEYWORD2
 initButton	KEYWORD2
 initButtonUL	KEYWORD2

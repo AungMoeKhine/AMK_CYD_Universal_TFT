@@ -69,27 +69,10 @@ void setup() {
     delay(200);
     Serial.println("\n[AMK_CYD_Universal_TFT] Starting ButtonDemo (TFT_eSPI_Button)...");
 
-    // 1. Initialize display & touch (Rotation 3: Standard Landscape)
-    tft.init();
-    tft.setRotation(3);
-    tft.setBacklight(100);
-
-    touch.begin(display);
-    touch.setRotation(3);
-    if (!touch.capacitive()) {
-        touch.loadCalibration();
-        touch.loadFilters();
-    }
-
-    // 2. Setup onboard RGB LED pins (active-low)
-#if !defined(AMK_BACKEND_ESP32_S3)
-    pinMode(display.redLedPin(), OUTPUT);
-    pinMode(display.greenLedPin(), OUTPUT);
-    pinMode(display.blueLedPin(), OUTPUT);
-    digitalWrite(display.redLedPin(), HIGH);
-    digitalWrite(display.greenLedPin(), HIGH);
-    digitalWrite(display.blueLedPin(), HIGH);
-#endif
+    // 1. Universal 1-line auto-setup (v1.6.0)
+    // Automatically sets up display, backlight PWM, RGB LED pins, and touch controller!
+    tft.autoSetup(3);
+    tft.autoCalibrate(); // Auto-calibrates uncalibrated resistive touch (< 1 ms if already saved; 0 ms if capacitive)
 
     int sw = tft.width();
     int sh = tft.height();

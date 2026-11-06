@@ -591,29 +591,15 @@ void setup() {
   delay(100);
   Serial.println("\n[AMK_CYD_Universal_TFT] Starting Universal SpriteDemo...");
 
-  // Initialize display
-  tft.init();
-  tft.setRotation(3); // Landscape (USB port left, SD card slot top)
+  // 1-Line Universal Auto-Setup (v1.6.0)
+  tft.autoSetup(3);
+  tft.autoCalibrate(); // Auto-calibrates uncalibrated resistive touch (< 1 ms if already saved; 0 ms if capacitive)
   SCRW = tft.width();
   SCRH = tft.height();
   BOTY = SCRH - 18;
-  tft.setBacklight(backlightPct);
-
-  // Initialize touch
-  touch.begin(display);
-  touch.setRotation(3);
-  if (!touch.capacitive()) {
-    touch.loadCalibration();
-    touch.loadFilters();
-  }
-
-  // Initialize RGB LED pins
-  pinRed   = display.redLedPin();
-  pinGreen = display.greenLedPin();
-  pinBlue  = display.blueLedPin();
-  if (pinRed >= 0)   { pinMode(pinRed,   OUTPUT); digitalWrite(pinRed,   HIGH); }
-  if (pinGreen >= 0) { pinMode(pinGreen, OUTPUT); digitalWrite(pinGreen, HIGH); }
-  if (pinBlue >= 0)  { pinMode(pinBlue,  OUTPUT); digitalWrite(pinBlue,  HIGH); }
+  pinRed   = tft.redLedPin();
+  pinGreen = tft.greenLedPin();
+  pinBlue  = tft.blueLedPin();
 
   // Allocate Sprites in SRAM
   gaugeSprite.createSprite(124, 124);
@@ -633,6 +619,8 @@ void setup() {
 
 // ── 9. ARDUINO LOOP ───────────────────────────────────────────────────────────
 void loop() {
+  tft.adjustBrightness(); // Built-in ambient light auto-dimming
+
   // 1. Calculate FPS
   frameCount++;
   if (millis() - lastFpsCalc >= 1000) {

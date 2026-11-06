@@ -224,23 +224,17 @@ void setup() {
 
   pinMode(BOOT_PIN, INPUT_PULLUP);
 
-  // Initialize display & touch with Rotation 3 standard (USB left, MicroSD top)
-  tft.init();
-  tft.setRotation(3);
-  touch.begin(display);
-  touch.setRotation(3);
-
-  // Try to load saved calibration if resistive
-  if (!touch.capacitive()) {
-    touch.loadCalibration();
-    touch.loadFilters();
-  }
+  // 1-Line Universal Auto-Setup (v1.6.0)
+  tft.autoSetup(3, false);
+  tft.autoCalibrate(); // Auto-calibrates uncalibrated resistive touch (< 1 ms if already saved; 0 ms if capacitive)
 
   printSerialReport();
   renderDashboard();
 }
 
 void loop() {
+  tft.adjustBrightness(); // Built-in ambient light auto-dimming
+
   // Clear canvas when BOOT button is pressed
   if (digitalRead(BOOT_PIN) == LOW) {
     delay(20);

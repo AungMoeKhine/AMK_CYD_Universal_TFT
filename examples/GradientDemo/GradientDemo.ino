@@ -203,31 +203,17 @@ void setup() {
 
     Serial.println("\n--- AMK_CYD_Universal_TFT Gradient Demo ---");
 
-    // Initialize display & touch with Rotation 3 landscape
-    tft.init();
-    tft.setRotation(3);
-    tft.setBacklight(100);
+    // 1-Line Universal Auto-Setup (v1.6.0)
+    tft.autoSetup(3);
     tft.fillScreen(TFT_BLACK);
-
-    touch.begin(display);
-    touch.setRotation(3);
-    if (!touch.capacitive()) {
-        touch.loadCalibration();
-        touch.loadFilters();
-    }
-
-    // Initialize onboard RGB LED pins as outputs
-#if !defined(AMK_BACKEND_ESP32_S3)
-    pinMode(display.redLedPin(), OUTPUT);
-    pinMode(display.greenLedPin(), OUTPUT);
-    pinMode(display.blueLedPin(), OUTPUT);
-#endif
 
     // Render the initial dashboard
     renderDashboard();
 }
 
 void loop() {
+    tft.adjustBrightness(); // Built-in ambient light auto-dimming
+
     uint16_t t_x = 0, t_y = 0;
     bool touched = tft.getTouch(&t_x, &t_y);
 

@@ -16,20 +16,13 @@ TFT_eSPI    tft;
 void setup() {
   Serial.begin(115200);
 
-  // 2. Initialize display (auto-probes panel & board wiring)
-  tft.init();
-  tft.setRotation(3);       // Landscape (Rotation 3: USB left, SD card top)
-  tft.setBacklight(100);    // Backlight brightness (0 - 100%)
+  // 2. Universal 1-line auto-setup (v1.6.0)
+  // Automatically probes & configures display panel, rotation, backlight PWM,
+  // LDR moving average filter, Active-LOW RGB LED, and touch controller!
+  tft.autoSetup(3);
+  tft.autoCalibrate(); // Auto-calibrates uncalibrated resistive touch (< 1 ms if already saved; 0 ms if capacitive)
 
-  // 3. Initialize touch controller
-  touch.begin(display);
-  touch.setRotation(3);     // Match display rotation
-  if (!touch.capacitive()) {
-    touch.loadCalibration(); // Load NVS calibration if previously saved
-    touch.loadFilters();
-  }
-
-  // 4. Draw UI with smooth FreeFonts and balanced centered layout
+  // 3. Draw UI with smooth FreeFonts and balanced centered layout
   int sw = tft.width();
   int sh = tft.height();
   tft.fillScreen(TFT_BLACK);
@@ -78,11 +71,17 @@ void setup() {
 }
 
 void loop() {
+  // Built-in ambient light auto-dimming
+  tft.adjustBrightness();
+
   uint16_t x = 0, y = 0;
 
-  // 5. Read touch coordinates (returns true while pressed)
+  // Read touch coordinates (returns true while pressed)
   if (tft.getTouch(&x, &y)) {
     tft.fillCircle(x, y, 4, TFT_YELLOW); // Draw dot at touch position
+    tft.setRgbLed(false, true, true);    // Active-LOW RGB LED: Neon Cyan on touch
+  } else {
+    tft.turnLedOff();
   }
 
   delay(5);

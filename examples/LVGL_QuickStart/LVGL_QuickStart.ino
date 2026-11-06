@@ -32,17 +32,8 @@ void setup() {
     delay(100);
     Serial.println("\n[AMK_CYD_Universal_TFT] Starting LVGL_QuickStart...");
 
-    // 1. Initialize Display & Touch (Rotation 3: Landscape, USB left, SD top)
-    tft.init();
-    tft.setRotation(3);
-    tft.setBacklight(100);
-
-    touch.begin(display);
-    touch.setRotation(3);
-    if (!touch.capacitive()) {
-        touch.loadCalibration();
-        touch.loadFilters();
-    }
+    // 1. Universal 1-line auto-setup (v1.6.0)
+    tft.autoSetup(3);
 
     // 2. Initialize LVGL in 1 LINE!
     if (!lvgl.begin(display, touch)) {

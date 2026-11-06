@@ -30,28 +30,13 @@ void setup() {
   Serial.begin(115200);
   delay(200);
 
-  // 1. Initialize display (auto-probes panel controller and wiring)
-  tft.init();
-  tft.setRotation(3);       // Standard Landscape (Rotation 3: USB left, SD card top)
-  tft.setBacklight(100);    // Backlight brightness (0 to 100%)
+  // 1. Universal 1-line auto-setup (v1.6.0)
+  // Automatically detects and configures panel, rotation, backlight PWM,
+  // LDR moving average filter, Active-LOW RGB LED, and touch controller!
+  tft.autoSetup(3);
+  tft.autoCalibrate(); // Auto-calibrates uncalibrated resistive touch (< 1 ms if already saved; 0 ms if capacitive)
 
-  // 2. Initialize touch and sync orientation with display
-  touch.begin(display);
-  touch.setRotation(3);
-
-  // 3. Load calibration and noise filters from NVS flash (if resistive)
-  if (!touch.capacitive()) {
-    if (touch.loadCalibration()) {
-      Serial.println("Loaded touch calibration from NVS flash.");
-    } else {
-      Serial.println("No saved calibration found; using hardware defaults.");
-    }
-    touch.loadFilters();
-  } else {
-    Serial.printf("Capacitive touch detected (%s) - factory calibrated.\n", touch.chipName());
-  }
-
-  // 4. Draw balanced, centered responsive interface
+  // 2. Draw balanced, centered responsive interface
   int sw = tft.width();
   int sh = tft.height();
 
@@ -126,6 +111,9 @@ void setup() {
 // 3. LOOP
 // ═══════════════════════════════════════════════════════════════════════════════
 void loop() {
+  // Built-in ambient light auto-dimming (first line of loop)
+  tft.adjustBrightness();
+
   uint16_t x = 0, y = 0;
 
   // Read touch (returns true while screen is touched)
@@ -134,11 +122,16 @@ void loop() {
     if (x >= btnX && x <= btnX + btnW && y >= btnY && y <= btnY + btnH) {
       // Clear drawing canvas area
       tft.fillRect(0, canvasTop, tft.width(), btnY - canvasTop - 4, TFT_BLACK);
+      tft.setRgbLed(true, false, false); // Red pulse on clear
       delay(150); // debounce tap
+      tft.turnLedOff();
     } else if (y >= canvasTop && y < btnY - 4) {
       // Draw touch dot in the canvas area
       tft.fillCircle(x, y, 3, TFT_CYAN);
+      tft.setRgbLed(false, true, true); // Neon Cyan on touch
     }
+  } else {
+    tft.turnLedOff();
   }
 
   delay(5);
