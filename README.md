@@ -701,6 +701,16 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 
 ## 📝 Release History & Changelog
 
+### v1.6.1 (Maintenance & Usability Patch)
+* 🐛 **Fixed CYD Backend Minimal Sketch Linker Error**:
+  * Added weak symbol fallback (`__attribute__((weak))`) for `chipguy_CYD_resistive_touch touch` in the CYD backend (`AMK_CYD_Universal_TFT.cpp`).
+  * Allows end users to write clean minimal sketches with only `TFT_eSPI tft;` without requiring explicit global `AMK_touch touch;` declarations.
+* 📱 **Official Model Identification for ESP32-2432S028C (2.8" Capacitive CYD)**:
+  * Added `CYDR_MODEL_2432S028C` to `cydr_model_t` enum and runtime detection.
+  * 2.8" capacitive CYD boards (CST820 / CST816 on I2C SDA: 33, SCL: 32 with GPIO 21 backlight) are now officially identified as `"ESP32-2432S028C 2.8\""` in the serial hardware audit report instead of `CYDR_MODEL_UNKNOWN`.
+* 📋 **ESP32-S3 Parallel RGB Architecture Clarifications**:
+  * Documented that the integrated 800x480 parallel RGB driver is tailored for the **Waveshare ESP32-S3-Touch-LCD (CH422G I2C IO Expander)** architecture, detailing the hardware pin differences with Sunton ESP32-8048Sxxx boards (which use direct GPIO 2 PWM backlight and direct touch GPIOs 19/20).
+
 ### v1.6.0 (Major Milestone Release)
 * 🪄 **1-Line Universal Hardware Auto-Setup Engine (`tft.autoSetup()`)**:
   * Eliminates 30–50 lines of duplicate hardware initialization boilerplate across all sketches!
