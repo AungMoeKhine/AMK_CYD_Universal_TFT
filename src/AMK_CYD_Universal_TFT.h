@@ -598,6 +598,10 @@ public:
             delay(5);
         }
 
+        // Ensure clean text size and standard font for calibration screen
+        setTextSize(1);
+        setFreeFont(nullptr);
+
         const int scrW = width();
         const int scrH = height();
         const int targetRot = getRotation();
@@ -696,10 +700,10 @@ public:
                 fillScreen(TFT_BLACK);
                 setTextDatum(MC_DATUM);
                 setTextColor(TFT_ORANGE, TFT_BLACK);
-                drawString("Fit error high - escalating grid...", scrW / 2, scrH / 2 - 10, 2);
+                drawString("Fit error high - escalating grid...", scrW / 2, scrH / 2 - 10, (scrW > 320) ? 2 : 1);
                 char errBuf[64];
                 snprintf(errBuf, sizeof(errBuf), "RMS: %.1f px | Max: %.1f px", finalRms, finalMaxErr);
-                drawString(errBuf, scrW / 2, scrH / 2 + 10, 2);
+                drawString(errBuf, scrW / 2, scrH / 2 + 10, (scrW > 320) ? 2 : 1);
                 delay(1200);
             }
 
@@ -709,7 +713,7 @@ public:
                     fillScreen(TFT_BLACK);
                     setTextDatum(TC_DATUM);
                     setTextColor(TFT_CYAN, TFT_BLACK);
-                    drawString("AMK TOUCH CALIBRATION", scrW / 2, 6, 2);
+                    drawString("AMK TOUCH CALIBRATION", scrW / 2, 6, (scrW > 320) ? 2 : 1);
 
                     char buf[64];
                     snprintf(buf, sizeof(buf), "Point %d of %d - Tap & hold crosshair", i + 1, totalPts);
@@ -765,6 +769,7 @@ public:
                     if (nSamples < MIN_SAMPLES || (maxx - minx) > JITTER_RAW || (maxy - miny) > JITTER_RAW) {
                         // Shaky touch
                         drawCross(gx[i], gy[i], TFT_BLACK, TFT_BLACK);
+                        fillRect(0, 18, scrW, 16, TFT_BLACK); // Cleanly wipe point progress text
                         setTextDatum(TC_DATUM);
                         setTextColor(TFT_YELLOW, TFT_BLACK);
                         drawString("Too shaky! Hold stylus steady...", scrW / 2, 24, 1);
@@ -848,7 +853,7 @@ public:
         drawRoundRect(16, scrH / 2 - 30, scrW - 32, 60, 8, TFT_CYAN);
         setTextDatum(MC_DATUM);
         setTextColor(TFT_WHITE, 0x03E0);
-        drawString("CALIBRATION SAVED TO NVS!", scrW / 2, scrH / 2 - 10, 2);
+        drawString("CALIBRATION SAVED TO NVS!", scrW / 2, scrH / 2 - 10, (scrW > 320) ? 2 : 1);
         char statsBuf[64];
         snprintf(statsBuf, sizeof(statsBuf), "RMS Error: %.1f px | Max: %.1f px", finalRms, finalMaxErr);
         drawString(statsBuf, scrW / 2, scrH / 2 + 12, 1);

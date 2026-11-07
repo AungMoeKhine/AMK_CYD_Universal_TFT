@@ -167,6 +167,7 @@ enum cydr_model_t : uint8_t {
                              //   capacitive touch (I2C SDA 33 / SCL 32)
     CYDR_MODEL_3248S035C,    // ESP32-3248S035C 3.5": ST7796 that answers no ID
                              //   reads, backlight 27, GT911 capacitive touch
+    CYDR_MODEL_2432S028C,    // ESP32-2432S028C 2.8": ILI9341/ST7789, backlight 21, CST820
     CYDR_MODEL_COUNT         // not a model: one past the last
 };
 // Values are stored by number in the model override, so new models go at the end.

@@ -16,8 +16,11 @@ __attribute__((weak)) AMK_S3_touch       touch(s_amk_default_board);
 
 #else
 
-// Default global display hardware instance for CYD with weak linkage.
-// If the sketch declares its own `display`, the sketch's declaration takes precedence.
+// Default global display & touch hardware instances for CYD with weak linkage.
+// If the sketch declares its own `display` or `touch`, the sketch's declaration takes precedence.
 chipguy_CYD_resistive_display display __attribute__((weak));
+#ifndef AMK_CYD_NO_GLOBAL_TOUCH
+chipguy_CYD_resistive_touch   touch   __attribute__((weak));
+#endif
 
 #endif

@@ -1,7 +1,11 @@
 #pragma once
 // ═══════════════════════════════════════════════════════════════════════════════
 // AMK_S3_RGB_Board.h - Hardware Board Controller for ESP32-S3 RGB Display Boards
-//                      Supports Waveshare & Sunton 4.3", 5.0", 7.0" RGB panels
+//                      Designed for Waveshare ESP32-S3-Touch-LCD 4.3", 5.0", 7.0"
+//                      (ST7262 Parallel RGB + GT911 Capacitive Touch with CH422G IO Expander)
+//
+// NOTE: Sunton ESP32-8048Sxxx boards use direct ESP32 GPIOs without a CH422G expander
+//       and require board-specific direct pin maps (DE:40, VSYNC:41, HSYNC:39, PCLK:42, BL:2).
 //
 // Features:
 //   - Onboard CH422G IO Expander management (LCD Reset, Backlight, Touch Reset, Power)

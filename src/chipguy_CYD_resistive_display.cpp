@@ -413,6 +413,7 @@ const char *chipguy_CYD_resistive_display::modelName(cydr_model_t m, uint8_t siz
         case CYDR_MODEL_2432S024C: return "ESP32-2432S024C";
         case CYDR_MODEL_JC2432W328: return "JC2432W328 2.8\"";
         case CYDR_MODEL_3248S035C: return "ESP32-3248S035C";
+        case CYDR_MODEL_2432S028C: return "ESP32-2432S028C 2.8\"";
         default:                   return "unknown";
     }
 }
@@ -446,6 +447,7 @@ static _cydr_modelFacts _cydr_factsOf(cydr_model_t m) {
         case CYDR_MODEL_JC2432W328: return {CYDR_BOARD_SHARED_TOUCH, 4, CYDR_TOUCH_CST820,  28, CYDR_PWRKEY_LONG_HOLD};
         // No battery connector, charger or power key (bench, 2026-11-02).
         case CYDR_MODEL_3248S035C:  return {CYDR_BOARD_SHARED_TOUCH, 4, CYDR_TOUCH_GT911,   35, CYDR_PWRKEY_NONE};
+        case CYDR_MODEL_2432S028C:  return {CYDR_BOARD_OWN_TOUCH,    4, CYDR_TOUCH_CST820,  28, CYDR_PWRKEY_NONE};
         default:                    return {CYDR_BOARD_UNKNOWN,     -1, CYDR_TOUCH_XPT2046, 0,  CYDR_PWRKEY_UNKNOWN};
     }
 }
@@ -716,6 +718,8 @@ bool chipguy_CYD_resistive_display::begin(uint16_t rotation) {
             _model = CYDR_MODEL_2432S024C;
         else if (_panel == CYDR_PANEL_ST7789 && hint == CYDR_BOARD_SHARED_TOUCH)
             _model = CYDR_MODEL_JC2432W328;
+        else if (hint == CYDR_BOARD_OWN_TOUCH)
+            _model = CYDR_MODEL_2432S028C;
         else {
             _model = CYDR_MODEL_UNKNOWN;
             Serial.printf("cydr display: CST820 touch with a %s panel on %s wiring: "

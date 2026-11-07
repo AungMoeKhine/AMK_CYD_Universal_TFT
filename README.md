@@ -1,7 +1,7 @@
 # AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.6.0-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.6.1-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD%20%2B%20S3%20RGB-2.4%22%20to%207.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
@@ -146,16 +146,19 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 | **ESP32-2432S032C** (3.2" Capacitive) | 3.2" | 240x320 | ST7789 (SDA half-duplex) | I2C GT911 (SDA 33 / SCL 32) | GPIO 27 | GPIO 4 |
 | **ESP32-2432S024C** (2.4" Capacitive) | 2.4" | 240x320 | ILI9341 | I2C CST820 (SDA 33 / SCL 32) | GPIO 27 | GPIO 4 |
 | **Guition JC2432W328** (2.8" Capacitive) | 2.8" | 240x320 | ST7789 | I2C CST820 (SDA 33 / SCL 32) | GPIO 27 | GPIO 4 |
+| **ESP32-2432S028C** (2.8" Capacitive) | 2.8" | 240x320 | ILI9341 / ST7789 | I2C CST820 (SDA 33 / SCL 32) | GPIO 21 | GPIO 4 |
 | **ESP32-3248S035C** (3.5" Capacitive) | 3.5" | 320x480 | ST7796 | I2C GT911 (SDA 33 / SCL 32) | GPIO 27 | GPIO 4 |
 
 ### 2. ESP32-S3 Parallel RGB Series (16-bit RGB + GT911 Capacitive Touch)
 
-| Board Model | Screen Size | Resolution | Interface | Driver IC | Touch Controller | IO Expander |
+| Board Model | Screen Size | Resolution | Interface | Driver IC | Touch Controller | Architecture / IO Expander |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Waveshare ESP32-S3-Touch-LCD-7** | 7.0" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C) |
-| **Waveshare ESP32-S3-Touch-LCD-5** | 5.0" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C) |
-| **Waveshare ESP32-S3-Touch-LCD-4.3** | 4.3" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C) |
-| **Sunton ESP32-8048S070 / S050 / S043** | 4.3" - 7.0" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | Supported |
+| **Waveshare ESP32-S3-Touch-LCD-7** | 7.0" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C SDA: 8, SCL: 9) |
+| **Waveshare ESP32-S3-Touch-LCD-5** | 5.0" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C SDA: 8, SCL: 9) |
+| **Waveshare ESP32-S3-Touch-LCD-4.3** | 4.3" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C SDA: 8, SCL: 9) |
+| **Sunton ESP32-8048S070 / S050 / S043** | 4.3" - 7.0" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | Direct GPIO (BL: GPIO 2, Touch: 19/20) * |
+
+> *\* Note on Sunton ESP32-8048S Series:* Sunton S3 boards do not include an onboard CH422G I/O expander and route the backlight directly to GPIO 2 PWM, with GT911 touch on I2C pins 19 & 20. The integrated `AMK_S3_RGB_Board` manager defaults to the Waveshare CH422G architecture.
 
 ---
 
