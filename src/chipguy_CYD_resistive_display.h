@@ -71,6 +71,9 @@
 // value.  An FQBN that omits an option is left alone: it gets the board's
 // default, which is right for both.  Option matching is exact: the name=value
 // must be followed by a comma or the end of the string.
+#if !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(BOARD_ESP32_S3_RGB) && !defined(BOARD_ESP32_S3_TOUCH_7) && !defined(ARDUINO_WAVESHARE_ESP32_S3_TOUCH_LCD_7)
+#if defined(CONFIG_IDF_TARGET_ESP32)
+#if defined(ARDUINO_FQBN) && (__cplusplus >= 201402L)
 static constexpr bool cydr_fqbnHasOption(const char *s, const char *opt) {
     for (; *s; ++s) {
         const char *a = s; const char *b = opt;
@@ -79,9 +82,6 @@ static constexpr bool cydr_fqbnHasOption(const char *s, const char *opt) {
     }
     return false;
 }
-#if !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(BOARD_ESP32_S3_RGB) && !defined(BOARD_ESP32_S3_TOUCH_7) && !defined(ARDUINO_WAVESHARE_ESP32_S3_TOUCH_LCD_7)
-#if defined(CONFIG_IDF_TARGET_ESP32)
-#ifdef ARDUINO_FQBN
 static_assert(!cydr_fqbnHasOption(ARDUINO_FQBN, "FlashSize=8M") &&
               !cydr_fqbnHasOption(ARDUINO_FQBN, "FlashSize=16M") &&
               !cydr_fqbnHasOption(ARDUINO_FQBN, "FlashSize=32M"),

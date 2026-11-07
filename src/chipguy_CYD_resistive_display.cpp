@@ -7,9 +7,12 @@
  */
 
 #include "chipguy_CYD_resistive_display.h"
+#include <esp_idf_version.h>
 #include <driver/gpio.h>
 #include <esp_heap_caps.h>
+#if __has_include(<esp32-hal-periman.h>)
 #include <esp32-hal-periman.h>
+#endif
 #include <Wire.h>
 #include <Preferences.h>
 
@@ -148,7 +151,9 @@ static uint32_t _cydr_gpio4PulldownMillivolts() {
     uint32_t mv = 0;
     for (int i = 0; i < 8; i++) mv += analogReadMilliVolts(4);
     gpio_set_pull_mode(GPIO_NUM_4, GPIO_FLOATING);
+#if __has_include(<esp32-hal-periman.h>)
     perimanClearPinBus(4);                         // release ADC2 before WiFi wants it
+#endif
     return mv / 8;
 }
 
@@ -926,14 +931,18 @@ cydr_readback_t chipguy_CYD_resistive_display::_probeReadback() {
     t.flags = SPI_TRANS_USE_TXDATA | SPI_TRANS_CS_KEEP_ACTIVE;
     t.tx_data[0] = 0x2E;                   // RAMRD
     t.user = (void *)0;
+#if defined(ESP_IDF_VERSION) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0))
     t.override_freq_hz = 2000000;
+#endif
     spi_device_polling_transmit(_spi, &t);
     t = {};
     if (_cydr_panelSdaOnly) { t.length = 0; t.rxlength = n * 8; }
     else                      t.length = n * 8;
     t.rx_buffer = buf;
     t.user = (void *)1;
+#if defined(ESP_IDF_VERSION) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0))
     t.override_freq_hz = 2000000;
+#endif
     spi_device_polling_transmit(_spi, &t);
     // NOP at the write clock.  override_freq_hz sticks to the device for the
     // transactions after it, so the write clock has to be set back explicitly.
@@ -942,7 +951,9 @@ cydr_readback_t chipguy_CYD_resistive_display::_probeReadback() {
     t.flags = SPI_TRANS_USE_TXDATA;
     t.tx_data[0] = 0x00;
     t.user = (void *)0;
+#if defined(ESP_IDF_VERSION) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0))
     t.override_freq_hz = _spiHz;
+#endif
     spi_device_polling_transmit(_spi, &t);
     spi_device_release_bus(_spi);
 

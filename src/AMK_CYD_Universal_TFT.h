@@ -490,7 +490,11 @@ public:
         uint8_t blPin = backlightPin();
         if (blPin > 0) {
             pinMode(blPin, OUTPUT);
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && (ESP_ARDUINO_VERSION_MAJOR >= 3)
             analogWriteResolution(blPin, 8);
+#else
+            analogWriteResolution(8);
+#endif
             analogWrite(blPin, _activeBacklightLevel);
         }
 

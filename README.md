@@ -1,7 +1,7 @@
 # AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.6.1-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.6.2-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD%20%2B%20S3%20RGB-2.4%22%20to%207.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
@@ -700,6 +700,15 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 ---
 
 ## 📝 Release History & Changelog
+
+### v1.6.2 (PlatformIO & Multi-Core Cross-Compatibility Patch)
+* 🛠️ **Universal PlatformIO & VSCode Support**:
+  * Resolves all compilation and linking failures when building under VSCode and PlatformIO across standard and bleeding-edge frameworks.
+* ⚡ **Cross-Version ESP-IDF & ESP32 Arduino Core Compatibility**:
+  * **ESP-IDF v5.5 / v5.3 / v5.1 / v4.4 Guarded SPI Overrides**: Added preprocessor guards around `spi_transaction_t::override_freq_hz`, ensuring seamless builds on IDF 5.3, 5.1, and 4.4 toolchains where this struct member is not defined.
+  * **Arduino Core 2.x & 3.x Dual-Mode `analogWriteResolution`**: Added version-aware switching between Core 3.x dual-parameter `analogWriteResolution(pin, bits)` and Core 2.x single-parameter `analogWriteResolution(bits)`.
+  * **Dynamic Peripheral Manager Guard**: Wrapped `<esp32-hal-periman.h>` and `perimanClearPinBus(4)` with `#if __has_include(<esp32-hal-periman.h>)`, providing clean fallback for Arduino ESP32 Core 2.0.x toolchains.
+  * **C++11 Constexpr Compliance**: Guarded Arduino IDE-specific FQBN validator `cydr_fqbnHasOption()` to avoid C++11 loop syntax restrictions in standard PlatformIO GCC 8 toolchains.
 
 ### v1.6.1 (Maintenance & Usability Patch)
 * 🐛 **Fixed CYD Backend Minimal Sketch Linker Error**:
