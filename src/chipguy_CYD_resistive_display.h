@@ -168,6 +168,9 @@ enum cydr_model_t : uint8_t {
     CYDR_MODEL_3248S035C,    // ESP32-3248S035C 3.5": ST7796 that answers no ID
                              //   reads, backlight 27, GT911 capacitive touch
     CYDR_MODEL_2432S028C,    // ESP32-2432S028C 2.8": ILI9341/ST7789, backlight 21, CST820
+    CYDR_MODEL_CROWADV28,    // Elecrow CrowPanel Advance 2.8" (ESP32-S3, ST7789, FT6336U)
+    CYDR_MODEL_ES3C28P,      // LCDWIKI ES3C28P 2.8" (ESP32-S3, ILI9341V, FT6336G)
+    CYDR_MODEL_NMCYDC5,      // NM-CYD-C5 2.8" (ESP32-C5, ST7789, XPT2046)
     CYDR_MODEL_COUNT         // not a model: one past the last
 };
 // Values are stored by number in the model override, so new models go at the end.
@@ -178,6 +181,7 @@ enum cydr_touch_chip_t : uint8_t {
     CYDR_TOUCH_XPT2046 = 0,
     CYDR_TOUCH_GT911,        // 0x5D or 0x14 (ESP32-2432S032C, ESP32-3248S035C)
     CYDR_TOUCH_CST820,       // 0x15, Hynitron CST816 / CST820 family (2432S024C, JC2432W328)
+    CYDR_TOUCH_FT6336,       // 0x38, FocalTech FT6336U / FT6336G
 };
 
 // Probe SDA 33 / SCL 32 for a capacitive touch chip: CST820 at 0x15, then GT911
@@ -379,7 +383,7 @@ public:
     // Before begin(): the panel's SPI clock, overriding both the default
     // 40 MHz and any saved override (0 = no change).  TouchCalibrate runs at
     // 20 MHz so it stays usable whatever the clock override says.
-    void setSpiClock(uint32_t hz) { _spiHzForced = hz; }
+    void setSpiClock(uint32_t hz);
 
     // After begin(): the overrides in effect (all AUTO if none, or if
     // useOverrides(false)), and what detection chose for each display-side

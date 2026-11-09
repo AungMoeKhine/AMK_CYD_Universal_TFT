@@ -496,6 +496,7 @@ const char *chipguy_CYD_resistive_touch::chipName() const {
     switch (_chip) {
         case CYDR_TOUCH_GT911:  return "GT911";
         case CYDR_TOUCH_CST820: return "CST820";
+        case CYDR_TOUCH_FT6336: return "FT6336";
         default:                return "XPT2046";
     }
 }

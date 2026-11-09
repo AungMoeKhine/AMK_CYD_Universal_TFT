@@ -81,6 +81,8 @@
   using AMK_touch       = chipguy_CYD_resistive_touch;
 #endif
 
+#include "AMK_Hardware_Profiles.h"
+
 #ifndef pgm_read_ptr
 #define pgm_read_ptr(addr) (*(const void **)(addr))
 #endif
@@ -535,7 +537,10 @@ public:
         touch.setRotation(rotation);
         if (!touch.capacitive()) {
             touch.loadCalibration();
-            touch.loadFilters();
+            if (!touch.loadFilters()) {
+                // Apply optimal default noise & pressure filters (rejects ghost touches & spikes)
+                touch.setFilters(200, 50);
+            }
             if (autoCalibrateIfUnset && !hasTouchCalibration()) {
                 autoCalibrate(false);
             }
@@ -951,6 +956,9 @@ public:
 
     const char* modelName() const { return display.modelName(); }
     const char* panelName() const { return display.panelName(); }
+    const AMK_BoardProfile* getBoardProfile() const { return AMK_findProfileByName(display.modelName()); }
+    int8_t getAuxLedPin() const { const AMK_BoardProfile* p = getBoardProfile(); return p ? p->pinAuxLed : -1; }
+    int8_t getAudioAmpPin() const { const AMK_BoardProfile* p = getBoardProfile(); return p ? p->pinAudioAmp : -1; }
     uint8_t diagonalTenths() const { return display.diagonalTenths(); }
     int16_t nativeWidth() const { return display.nativeWidth(); }
     int16_t nativeHeight() const { return display.nativeHeight(); }
@@ -970,6 +978,9 @@ public:
         Serial.printf(" Backlight Control:   8-bit PWM (Active Level: %d / 255)\n", _activeBacklightLevel);
         Serial.printf(" Color Order:         %s (Factory MADCTL verified)\n", isBGR() ? "BGR" : "RGB");
         Serial.printf(" 16-bit Byte Swap:    %s\n", getSwapBytes() ? "Enabled (true)" : "Disabled");
+#if !defined(AMK_BACKEND_ESP32_S3)
+        Serial.printf(" SPI Bus Frequency:   %u MHz\n", (unsigned)(display.spiClock() / 1000000));
+#endif
 #ifndef AMK_CYD_NO_GLOBAL_TOUCH
         Serial.printf(" Touch Controller:    %s (%s)\n", touch.chipName(), touch.capacitive() ? "Capacitive I2C" : "Resistive SPI");
 #endif
@@ -981,6 +992,14 @@ public:
         const char* hint = display.powerOffHint();
         if (hint) Serial.printf(" Power-Off Hint:      %s\n", hint);
 #endif
+        const AMK_BoardProfile* prof = getBoardProfile();
+        if (prof && prof->id != AMK_BOARD_UNKNOWN) {
+            Serial.println("-----------------------------------------------------------------");
+            Serial.printf(" MCU Platform:        %s\n", prof->mcu);
+            Serial.printf(" Hardware Profile:    %s\n", prof->description);
+            if (prof->pinAuxLed >= 0) Serial.printf(" Aux / WS2812 LED:    GPIO %d\n", prof->pinAuxLed);
+            if (prof->pinAudioAmp >= 0) Serial.printf(" Audio Amp Enable:    GPIO %d\n", prof->pinAudioAmp);
+        }
         Serial.println("=================================================================\n");
     }
 
@@ -1002,6 +1021,18 @@ public:
     void setBacklight(int pct)        { display.setBacklight(pct); }
     void setBacklightPin(uint8_t pin) { display.setBacklightPin(pin); }
     uint8_t backlightPin() const      { return display.backlightPin(); }
+    void setSpiClock(uint32_t hz) {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        display.setSpiClock(hz);
+#endif
+    }
+    uint32_t getSpiClock() const {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        return display.spiClock();
+#else
+        return 0;
+#endif
+    }
     virtual int16_t width()  const    { return display.width();    }
     virtual int16_t height() const    { return display.height();   }
 

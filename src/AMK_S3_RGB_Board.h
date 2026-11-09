@@ -78,21 +78,34 @@ public:
 
     AMK_S3_Board(TwoWire& wire = ::Wire) : Wire(wire) {}
 
+    bool hasExpander = true;
+
     void begin(int sda = WS_S3_I2C_SDA, int scl = WS_S3_I2C_SCL, uint32_t freq = 400000) {
         if (initialized) return;
         Wire.begin(sda, scl, freq);
 
-        // Initial shadow state: LCD power ON, Backlight ON, Touch normal, LCD normal, SD CS deselected
-        shadow = (1 << CH422G_PIN_LCD_PWR) |
-                 (1 << CH422G_PIN_LCD_BL)  |
-                 (1 << CH422G_PIN_TP_RST)  |
-                 (1 << CH422G_PIN_LCD_RST) |
-                 (1 << CH422G_PIN_SD_CS);
-        writeShadow();
+        // Probe if CH422G IO Expander is present on I2C (Waveshare vs Sunton/Guition Direct GPIO)
+        Wire.beginTransmission(CH422G_I2C_ADDR_CFG);
+        hasExpander = (Wire.endTransmission() == 0);
+
+        if (hasExpander) {
+            // Initial shadow state: LCD power ON, Backlight ON, Touch normal, LCD normal, SD CS deselected
+            shadow = (1 << CH422G_PIN_LCD_PWR) |
+                     (1 << CH422G_PIN_LCD_BL)  |
+                     (1 << CH422G_PIN_TP_RST)  |
+                     (1 << CH422G_PIN_LCD_RST) |
+                     (1 << CH422G_PIN_SD_CS);
+            writeShadow();
+        } else {
+            // Direct GPIO board fallback (Sunton ESP32-8048S050 / Guition JC8048W550: Backlight GPIO 2)
+            pinMode(2, OUTPUT);
+            digitalWrite(2, HIGH);
+        }
         initialized = true;
     }
 
     void writePin(uint8_t pin, bool state) {
+        if (!hasExpander) return;
         if (state) {
             shadow |= (1 << pin);
         } else {
@@ -102,6 +115,7 @@ public:
     }
 
     void writeShadow() {
+        if (!hasExpander) return;
         ThreadsafeWire::Guard g(Wire);
         Wire.beginTransmission(CH422G_I2C_ADDR_CFG);
         Wire.write(0x01);
@@ -113,14 +127,21 @@ public:
     }
 
     void lcdReset() {
-        writePin(CH422G_PIN_LCD_RST, false);
-        delay(20);
-        writePin(CH422G_PIN_LCD_RST, true);
-        delay(50);
+        if (hasExpander) {
+            writePin(CH422G_PIN_LCD_RST, false);
+            delay(20);
+            writePin(CH422G_PIN_LCD_RST, true);
+            delay(50);
+        }
     }
 
     void lcdBacklight(bool on) {
-        writePin(CH422G_PIN_LCD_BL, on);
+        if (hasExpander) {
+            writePin(CH422G_PIN_LCD_BL, on);
+        } else {
+            pinMode(2, OUTPUT);
+            digitalWrite(2, on ? HIGH : LOW);
+        }
     }
 
     void touchReset(int intPin = WS_S3_TP_INT) {

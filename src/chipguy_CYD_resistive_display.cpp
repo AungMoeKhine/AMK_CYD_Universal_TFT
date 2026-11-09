@@ -419,6 +419,9 @@ const char *chipguy_CYD_resistive_display::modelName(cydr_model_t m, uint8_t siz
         case CYDR_MODEL_JC2432W328: return "JC2432W328 2.8\"";
         case CYDR_MODEL_3248S035C: return "ESP32-3248S035C";
         case CYDR_MODEL_2432S028C: return "ESP32-2432S028C 2.8\"";
+        case CYDR_MODEL_CROWADV28:  return "Elecrow CrowPanel Advance 2.8\"";
+        case CYDR_MODEL_ES3C28P:    return "LCDWIKI ES3C28P 2.8\"";
+        case CYDR_MODEL_NMCYDC5:    return "NM-CYD-C5 2.8\"";
         default:                   return "unknown";
     }
 }
@@ -453,6 +456,9 @@ static _cydr_modelFacts _cydr_factsOf(cydr_model_t m) {
         // No battery connector, charger or power key (bench, 2026-11-02).
         case CYDR_MODEL_3248S035C:  return {CYDR_BOARD_SHARED_TOUCH, 4, CYDR_TOUCH_GT911,   35, CYDR_PWRKEY_NONE};
         case CYDR_MODEL_2432S028C:  return {CYDR_BOARD_OWN_TOUCH,    4, CYDR_TOUCH_CST820,  28, CYDR_PWRKEY_NONE};
+        case CYDR_MODEL_CROWADV28:  return {CYDR_BOARD_UNKNOWN,      -1, CYDR_TOUCH_FT6336,  28, CYDR_PWRKEY_NONE};
+        case CYDR_MODEL_ES3C28P:    return {CYDR_BOARD_UNKNOWN,      42, CYDR_TOUCH_FT6336,  28, CYDR_PWRKEY_NONE};
+        case CYDR_MODEL_NMCYDC5:    return {CYDR_BOARD_SHARED_TOUCH, 27, CYDR_TOUCH_XPT2046, 28, CYDR_PWRKEY_NONE};
         default:                    return {CYDR_BOARD_UNKNOWN,     -1, CYDR_TOUCH_XPT2046, 0,  CYDR_PWRKEY_UNKNOWN};
     }
 }
@@ -1130,6 +1136,32 @@ void chipguy_CYD_resistive_display::setBacklight(int percentage) {
     if (percentage > 100) percentage = 100;
     // Active HIGH: higher duty = brighter.
     analogWrite(_blPin, percentage * 255 / 100);
+}
+
+void chipguy_CYD_resistive_display::setSpiClock(uint32_t hz) {
+    if (hz == 0) return;
+    _spiHzForced = hz;
+    _spiHz = hz;
+    if (_spi) {
+        _waitPixelDone();
+        spi_bus_remove_device(_spi);
+        spi_device_interface_config_t devcfg = {};
+        devcfg.clock_speed_hz = (int)_spiHz;
+        devcfg.mode = 0;
+        devcfg.spics_io_num = CYDR_TFT_CS;
+        devcfg.queue_size = 1;
+        devcfg.pre_cb = _cydr_spi_pre_cb;
+        devcfg.flags = SPI_DEVICE_NO_DUMMY;
+        if (_cydr_panelSdaOnly) devcfg.flags |= SPI_DEVICE_3WIRE | SPI_DEVICE_HALFDUPLEX;
+
+        esp_err_t err = spi_bus_add_device(CYDR_TFT_SPI_HOST, &devcfg, &_spi);
+        if (err != ESP_OK) {
+            Serial.printf("cydr display: setSpiClock failed: 0x%x\n", err);
+            _spi = nullptr;
+        } else {
+            Serial.printf("[AMK Display] SPI Bus Clock reconfigured to %u MHz\n", (unsigned)(_spiHz / 1000000));
+        }
+    }
 }
 
 // Asynchronous flush.  Returns once this region's pixel DMA has been *queued*,

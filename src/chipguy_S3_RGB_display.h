@@ -141,9 +141,12 @@ public:
     // Get display dimensions
     uint16_t width() const { return (_rotation == 1 || _rotation == 3) ? _height : _width; }
     uint16_t height() const { return (_rotation == 1 || _rotation == 3) ? _width : _height; }
+    int16_t nativeWidth() const { return _width; }
+    int16_t nativeHeight() const { return _height; }
 
     // Universal compatibility wrappers for TFT_eSPI & AMK_CYD_Universal_TFT
-    void flushRegion(int16_t x0, int16_t y0, int16_t x1, int16_t y1, const uint16_t* pixels) {
+    void flushRegion(int16_t x0, int16_t y0, int16_t x1, int16_t y1, const uint16_t* pixels, bool swapBytes = false) {
+        (void)swapBytes;
         pushImage(x0, y0, x1 - x0 + 1, y1 - y0 + 1, pixels);
     }
     void waitFlush() { /* Continuous RGB DMA refresh */ }

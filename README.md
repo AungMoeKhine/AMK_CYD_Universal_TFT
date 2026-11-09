@@ -1,7 +1,7 @@
 # AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.6.2-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.6.3-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD%20%2B%20S3%20RGB-2.4%22%20to%207.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
@@ -700,6 +700,31 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 ---
 
 ## 📝 Release History & Changelog
+
+### v1.6.3 (Universal Hardware Expansion & Stability Release)
+* 🛡️ **Rock-Solid Synchronized Rendering Pipeline**:
+  * Enforces strict pre-blit DMA synchronization (display.waitFlush()) and rock-solid scanline buffering across _fill, pushImage, and pushSprite.
+  * Completely eliminates DMA memory race conditions, vertical display displacement, and card edge ghosting/duplication on classic CYD resistive & capacitive panels.
+* 👆 **Resistive Touch Noise & Ghost-Click Suppression**:
+  * Defaulted 7-sample moving median filtering and minimum pressure thresholds in 	ft.autoSetup() (	ouch.setFilters(200, 50)).
+  * Eliminates phantom ghost touches, high-impedance ADC jitter, and false release events on XPT2046 resistive panels out of the box.
+* 📚 **Universal Hardware Database & Profiles (AMK_Hardware_Profiles.h)**:
+  * Comprehensive built-in hardware database extracted and verified against production schematics and the OWLOS flight radar core.
+  * Added official model support and pin configurations for:
+    * **Elecrow CrowPanel Advance 2.8"**: ESP32-S3 HMI, ST7789 IPS, FT6336U capacitive touch (I2C SDA 15, SCL 16), PWM backlight on GPIO 38.
+    * **LCDWIKI ES3C28P 2.8"**: ESP32-S3 N16R8, ILI9341V IPS, FT6336G capacitive touch, onboard WS2812B RGB LED on GPIO 42, PWM backlight on GPIO 45.
+    * **NM-CYD-C5 2.8"**: ESP32-C5 CYD form factor, ST7789, XPT2046 resistive touch (CS 1, IRQ 3), WS2812C RGB LED on GPIO 27, backlight on GPIO 25.
+    * **Sunton ESP32-8048S050 / Guition JC8048W550C 5.0" RGB**: Direct GPIO 2 backlight fallback, GT911 touch (I2C SDA 19, SCL 20).
+    * **Elecrow CrowPanel Advance 5.0" RGB**: ST7262 Parallel RGB, GT911 touch (I2C SDA 15, SCL 16).
+  * Added sketch-accessible helper APIs: 	ft.getBoardProfile(), 	ft.getAuxLedPin(), and 	ft.getAudioAmpPin().
+  * Enhanced 	ft.printHardwareReport() with MCU platform info, hardware notes, and onboard peripheral assignments.
+* 🖥️ **S3 Parallel RGB & CYD Full API Parity**:
+  * Added 
+ativeWidth(), 
+ativeHeight(), and flexible 6-parameter lushRegion() overload to chipguy_S3_RGB_display.h, guaranteeing 100% binary-compatible sketch code across both Classic CYD and S3 RGB boards.
+* 🔒 **Strict Preservation of Global Hardware Standards (RULE[user_global])**:
+  * Color order tables, MADCTL settings, and RGB/BGR definitions remain completely frozen with zero regression risk.
+  * Backlight dynamic auto-detection (display.backlightPin()) and LDR 10-read boot priming remain strictly maintained.
 
 ### v1.6.2 (PlatformIO & Multi-Core Cross-Compatibility Patch)
 * 🛠️ **Universal PlatformIO & VSCode Support**:
