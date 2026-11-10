@@ -1,6 +1,6 @@
 {
   "name": "AMK_CYD_Universal_TFT",
-  "version": "1.6.4",
+  "version": "1.6.5",
   "description": "Universal standalone TFT, touch, sprite, gradients, 1-line JPEG/PNG image decoding, and visual GUI driver with runtime hardware autoSetup, Sunton/Waveshare ESP32-S3 direct GPIO & expander detection, adaptive multi-point autoCalibrate, built-in LDR auto-dimming, RGB LED control, and TFT_eSPI_Button support for ESP32 CYD resistive & capacitive boards and ESP32-S3 parallel RGB capacitive touch boards.",
   "keywords": [
     "display",

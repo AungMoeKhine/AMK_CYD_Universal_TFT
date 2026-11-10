@@ -1,7 +1,7 @@
 # AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.6.4-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.6.5-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD%20%2B%20S3%20RGB-2.4%22%20to%207.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
@@ -718,6 +718,17 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 
 ## 📝 Release History & Changelog
 
+### v1.6.5 (Critical Patch: Heap-Safe PNGdec Engine & Image Decoder Stability)
+* 🛡️ **Critical Fix: Heap-Safe PNGdec Allocation (Zero Stack Overflow)**:
+  * Dynamically allocates the 42 KB `PNG` decoder structure in Heap RAM via `new (std::nothrow) PNG()`, completely eliminating FreeRTOS 8 KB task stack overflows and watchdog timer reboot loops (`rst:0x8 (TG1WDT_SYS_RESET)`).
+  * Automatically frees all allocated RAM (`delete png`) immediately upon scanline completion.
+* 🧩 **PNGdec 1.1.6 Driver Compliance**:
+  * Updated scanline callback signature to `int (PNGDRAW*)` returning 1, and routed pixel acquisition through `png->getLineAsRGB565`.
+* 📐 **JPEG Scanline MCU Row Packing**:
+  * Resolved edge distortion and jagged scanline alignment for non-16-divisible JPEGs via row memory packing.
+* 📱 **Refined ImageDecoderDemo Example**:
+  * Sized all UI cards and typography to fit perfectly within 320x240 CYD displays with zero border clipping, generous margins, and built-in auto-provisioned test bitmaps.
+
 ### v1.6.4 (Hardware Decoder & ESP32-S3 Direct-GPIO Universal Release)
 * 🖼️ **1-Line Hardware JPEG & PNG Decoder Wrapper (`AMK_Image_Decoder.h`)**:
   * Added high-performance 1-line image loading methods natively on `TFT_eSPI` and `TFT_eSprite`:
@@ -726,6 +737,8 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
     * `tft.drawJpg(data, len, x, y);`
     * `tft.drawPng(data, len, x, y);`
   * Zero full-frame RAM buffering: Streams MCU blocks (JPEG) and scanlines (PNG) directly into `pushImage()`.
+  * **Heap-Safe PNGdec Engine**: Dynamically allocates the 42 KB decoder structure in heap RAM, completely eliminating 8 KB FreeRTOS task stack overflows and watchdog reboot loops.
+  * **MCU Scanline Row Packing**: Guarantees razor-sharp rendering for JPEGs whose dimensions are not exact multiples of 16.
   * Seamless support for LittleFS, SPIFFS, SD, and SD_MMC.
   * Zero RAM or Flash overhead for sketches not calling image decoders (100% opt-in).
 * ⚡ **ESP32-S3 Direct-GPIO & Touch Auto-Detection Engine**:

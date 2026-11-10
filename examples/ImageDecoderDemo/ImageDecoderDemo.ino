@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════════════════════
 // ImageDecoderDemo.ino - Universal 1-Line JPEG & PNG Rendering Example
 //                        Part of AMK_CYD_Universal_TFT (v1.6.4+)
 //
@@ -12,6 +12,8 @@
 
 #include <Arduino.h>
 #include <LittleFS.h>
+#include <JPEGDecoder.h> // Tells Arduino IDE to link JPEGDecoder library
+#include <PNGdec.h>      // Tells Arduino IDE to link PNGdec library
 #include "AMK_CYD_Universal_TFT.h"
 
 // Global hardware instances
@@ -312,7 +314,6 @@ void setup() {
     Serial.println("[FS] LittleFS mounted successfully.");
 
     // Auto-provision sample test images to LittleFS if they don't exist yet
-    // This allows the demo to work immediately out-of-the-box!
     if (!LittleFS.exists("/logo.jpg")) {
       File f = LittleFS.open("/logo.jpg", "w");
       if (f) {
@@ -330,24 +331,24 @@ void setup() {
       }
     }
   } else {
-    Serial.println("[FS] LittleFS mount failed (falling back to PROGMEM direct memory rendering).");
+    Serial.println("[FS] LittleFS mount failed (falling back to direct RAM decoding).");
   }
 
-  // Draw header UI
+  // Draw header banner
   int16_t screenW = tft.width();
   int16_t screenH = tft.height();
 
   tft.fillScreen(TFT_BLACK);
-  tft.fillRectHGradient(0, 0, screenW, 40, TFT_NAVY, TFT_DARKCYAN);
+  tft.fillRectHGradient(0, 0, screenW, 36, TFT_NAVY, TFT_DARKCYAN);
   tft.setTextColor(TFT_WHITE, TFT_TRANSPARENT);
   tft.setTextDatum(MC_DATUM);
-  tft.drawString("AMK Image Decoder (1-Line)", screenW / 2, 20, 2);
+  tft.drawString("AMK Image Decoder (1-Line)", screenW / 2, 18, 2);
 
   // Responsive two-column layout that fits 320x240, 480x320, and 800x480
-  int16_t margin = 10;
-  int16_t gap = 10;
-  int16_t cardY = 48;
-  int16_t cardH = screenH - cardY - 30;
+  int16_t margin = 8;
+  int16_t gap = 8;
+  int16_t cardY = 42;
+  int16_t cardH = screenH - cardY - 26;
   int16_t cardW = (screenW - (margin * 2) - gap) / 2;
 
   int16_t card1X = margin;
@@ -374,21 +375,24 @@ void setup() {
     tft.drawJpg(sample_logo_jpg, sample_logo_jpg_len, img1X, img1Y);
   }
 
+  // Text inside card: carefully sized to never overflow 148px width
   tft.setTextColor(TFT_WHITE, 0x0841);
-  tft.drawString("tft.drawJpgFile()", card1X + cardW / 2, cardY + cardH - 45, 2);
+  tft.drawString("drawJpg()", card1X + cardW / 2, cardY + cardH - 40, 2);
   tft.setTextColor(TFT_GREENYELLOW, 0x0841);
-  tft.drawString("1-Line LittleFS / RAM", card1X + cardW / 2, cardY + cardH - 25, 2);
+  tft.drawString("LittleFS & PROGMEM", card1X + cardW / 2, cardY + cardH - 22, 1);
   tft.setTextColor(TFT_CYAN, 0x0841);
-  tft.drawString("64x64 Decoded", card1X + cardW / 2, cardY + cardH - 10, 1);
+  tft.drawString("64x64 1-Line Active", card1X + cardW / 2, cardY + cardH - 10, 1);
 #else
   tft.drawRoundRect(card1X, cardY, cardW, cardH, 8, TFT_RED);
   tft.fillRect(card1X + 2, cardY + 2, cardW - 4, cardH - 4, 0x2000);
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(TFT_RED, 0x2000);
-  tft.drawString("JPEGDecoder", card1X + cardW / 2, cardY + 30, 2);
+  tft.drawString("JPEGDecoder", card1X + cardW / 2, cardY + 22, 2);
+  tft.setTextColor(TFT_YELLOW, 0x2000);
+  tft.drawString("Not Installed", card1X + cardW / 2, cardY + 46, 2);
   tft.setTextColor(TFT_WHITE, 0x2000);
-  tft.drawString("Not Installed", card1X + cardW / 2, cardY + 60, 2);
-  tft.drawString("Add via Library Mgr", card1X + cardW / 2, cardY + 90, 2);
+  tft.drawString("Install 'JPEGDecoder'", card1X + cardW / 2, cardY + 76, 1);
+  tft.drawString("in Library Mgr", card1X + cardW / 2, cardY + 92, 1);
 #endif
 
   // ── 2. Demonstrate PNG Rendering (Filesystem or PROGMEM) ──
@@ -413,29 +417,31 @@ void setup() {
   }
 
   tft.setTextColor(TFT_WHITE, 0x0208);
-  tft.drawString("tft.drawPngFile()", card2X + cardW / 2, cardY + cardH - 45, 2);
+  tft.drawString("drawPng()", card2X + cardW / 2, cardY + cardH - 40, 2);
   tft.setTextColor(TFT_GREENYELLOW, 0x0208);
-  tft.drawString("1-Line LittleFS / RAM", card2X + cardW / 2, cardY + cardH - 25, 2);
+  tft.drawString("LittleFS & PROGMEM", card2X + cardW / 2, cardY + cardH - 22, 1);
   tft.setTextColor(TFT_GREEN, 0x0208);
-  tft.drawString("64x64 Decoded", card2X + cardW / 2, cardY + cardH - 10, 1);
+  tft.drawString("64x64 1-Line Active", card2X + cardW / 2, cardY + cardH - 10, 1);
 #else
   tft.drawRoundRect(card2X, cardY, cardW, cardH, 8, TFT_DARKGREY);
   tft.fillRect(card2X + 2, cardY + 2, cardW - 4, cardH - 4, 0x1082); // Dark Slate Grey
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(TFT_YELLOW, 0x1082);
-  tft.drawString("PNGdec Library", card2X + cardW / 2, cardY + 30, 2);
+  tft.drawString("PNGdec", card2X + cardW / 2, cardY + 20, 2);
   tft.setTextColor(TFT_WHITE, 0x1082);
-  tft.drawString("Optional Plugin", card2X + cardW / 2, cardY + 60, 2);
+  tft.drawString("Optional Plugin", card2X + cardW / 2, cardY + 44, 1);
   tft.setTextColor(TFT_LIGHTGREY, 0x1082);
-  tft.drawString("Install 'PNGdec'", card2X + cardW / 2, cardY + 90, 2);
-  tft.drawString("via Library Mgr", card2X + cardW / 2, cardY + 110, 2);
+  tft.drawString("Install 'PNGdec'", card2X + cardW / 2, cardY + 76, 1);
+  tft.drawString("in Library Mgr", card2X + cardW / 2, cardY + 92, 1);
+  tft.setTextColor(TFT_DARKGREY, 0x1082);
+  tft.drawString("to enable PNG", card2X + cardW / 2, cardY + 112, 1);
 #endif
 
-  // Status footer
-  tft.fillRect(0, screenH - 24, screenW, 24, 0x18C3);
+  // Status footer: Font 1 fits easily on 320px with 30px padding on each side!
+  tft.fillRect(0, screenH - 22, screenW, 22, 0x18C3);
   tft.setTextColor(TFT_YELLOW, 0x18C3);
   tft.setTextDatum(MC_DATUM);
-  tft.drawString("Touch screen to draw | Auto-dimming active", screenW / 2, screenH - 12, 2);
+  tft.drawString("Touch screen to draw  |  Auto-dimming active", screenW / 2, screenH - 11, 1);
 }
 
 void loop() {
