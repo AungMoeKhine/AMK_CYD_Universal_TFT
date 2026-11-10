@@ -1,4 +1,6 @@
 #pragma once
+#ifndef AMK_CYD_UNIVERSAL_TFT_H
+#define AMK_CYD_UNIVERSAL_TFT_H
 // ═══════════════════════════════════════════════════════════════════════════════
 // AMK_CYD_Universal_TFT.h - Universal standalone TFT, Touch & Sprite driver
 //                          for ESP32 CYD resistive boards (2.4" to 4.0")
@@ -15,6 +17,7 @@
 
 #include <Arduino.h>
 #include <SPI.h>
+#include <FS.h>
 #include <math.h>
 #include <algorithm>
 
@@ -915,6 +918,11 @@ public:
         if (blPin > 0) {
             analogWrite(blPin, brightness);
         }
+#if defined(AMK_BACKEND_ESP32_S3)
+        else {
+            display.setBacklight(brightness > 0 ? 100 : 0);
+        }
+#endif
     }
 
     // ── Universal RGB LED Control (Active-LOW Polarity) ──
@@ -974,7 +982,14 @@ public:
         if (display.diagonalTenths() > 0) {
             Serial.printf(" Screen Diagonal:     %.1f inches\n", display.diagonalTenths() / 10.0f);
         }
-        Serial.printf(" Backlight Pin:       GPIO %u (Auto-detected by library)\n", backlightPin());
+        if (backlightPin() > 0) {
+            Serial.printf(" Backlight Pin:       GPIO %u (Auto-detected by library)\n", backlightPin());
+        }
+#if defined(AMK_BACKEND_ESP32_S3)
+        else {
+            Serial.println(" Backlight Pin:       CH422G I/O Expander IO2 (Auto-detected)");
+        }
+#endif
         Serial.printf(" Backlight Control:   8-bit PWM (Active Level: %d / 255)\n", _activeBacklightLevel);
         Serial.printf(" Color Order:         %s (Factory MADCTL verified)\n", isBGR() ? "BGR" : "RGB");
         Serial.printf(" 16-bit Byte Swap:    %s\n", getSwapBytes() ? "Enabled (true)" : "Disabled");
@@ -1021,6 +1036,12 @@ public:
     void setBacklight(int pct)        { display.setBacklight(pct); }
     void setBacklightPin(uint8_t pin) { display.setBacklightPin(pin); }
     uint8_t backlightPin() const      { return display.backlightPin(); }
+
+    // ── Universal 1-Line Image Rendering Methods (defined in AMK_Image_Decoder.h) ──
+    bool drawJpg(const uint8_t *data, uint32_t len, int16_t x, int16_t y, uint16_t maxWidth = 0, uint16_t maxHeight = 0);
+    bool drawJpgFile(fs::FS &fs, const char *path, int16_t x, int16_t y, uint16_t maxWidth = 0, uint16_t maxHeight = 0);
+    bool drawPng(const uint8_t *data, uint32_t len, int16_t x, int16_t y, uint16_t maxWidth = 0, uint16_t maxHeight = 0);
+    bool drawPngFile(fs::FS &fs, const char *path, int16_t x, int16_t y, uint16_t maxWidth = 0, uint16_t maxHeight = 0);
     void setSpiClock(uint32_t hz) {
 #if !defined(AMK_BACKEND_ESP32_S3)
         display.setSpiClock(hz);
@@ -2509,3 +2530,8 @@ class TFT_eSPI_Button {
   uint8_t  _datum;
   bool     currstate, laststate;
 };
+
+
+#include "AMK_Image_Decoder.h"
+
+#endif // AMK_CYD_UNIVERSAL_TFT_H

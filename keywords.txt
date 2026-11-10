@@ -188,6 +188,15 @@ cydr_loadOverrides	KEYWORD2
 cydr_saveOverrides	KEYWORD2
 cydr_clearOverrides	KEYWORD2
 cydr_anyOverride	KEYWORD2
+drawJpg	KEYWORD2
+drawJpgFile	KEYWORD2
+drawPng	KEYWORD2
+drawPngFile	KEYWORD2
+isSunton	KEYWORD2
+hasExpander	KEYWORD2
+touchReset	KEYWORD2
+lcdReset	KEYWORD2
+lcdBacklight	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)

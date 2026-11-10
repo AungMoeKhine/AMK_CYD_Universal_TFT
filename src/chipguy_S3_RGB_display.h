@@ -160,16 +160,16 @@ public:
     void setSwapBytes(bool swap) { (void)swap; }
     bool getSwapBytes() const { return false; }
     void invertDisplay(bool invert) { (void)invert; }
-    void setBacklightPin(uint8_t pin) { (void)pin; }
-    uint8_t backlightPin() const { return 0; }
+    void setBacklightPin(uint8_t pin) { _board.backlightGpio = (int8_t)pin; }
+    uint8_t backlightPin() const { return (_board.backlightGpio >= 0) ? (uint8_t)_board.backlightGpio : 0; }
     void setMirrorX(bool mirror) { (void)mirror; }
     bool isMirrorX() const { return false; }
     void setPanel(cydr_panel_t p) { (void)p; }
     cydr_panel_t panel() const { return CYDR_PANEL_ST7262; }
     cydr_board_t board() const { return CYDR_BOARD_S3_RGB; }
     const char* panelName() const { return "ST7262"; }
-    const char* modelName() const { return "ESP32-S3-RGB-800x480"; }
-    const char* boardName() const { return "Waveshare/Sunton S3 RGB"; }
+    const char* modelName() const { return _board.isSunton ? "Sunton ESP32-8048Sxxx RGB" : "Waveshare ESP32-S3-Touch-LCD"; }
+    const char* boardName() const { return _board.isSunton ? "Sunton/Guition S3 RGB (Direct GPIO)" : "Waveshare S3 RGB (CH422G Expander)"; }
     uint8_t diagonalTenths() const { return 70; }
     const char* readbackName() const { return "Direct Framebuffer"; }
     uint8_t redLedPin() const { return 255; }

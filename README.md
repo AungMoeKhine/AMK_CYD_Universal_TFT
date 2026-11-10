@@ -1,7 +1,7 @@
 # AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.6.3-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.6.4-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD%20%2B%20S3%20RGB-2.4%22%20to%207.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
@@ -31,6 +31,23 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 ---
 
 ## 🚀 Key Features
+
+* 🖼️ **1-Line Hardware JPEG & PNG Decoder Wrapper (`tft.drawJpgFile()`, `tft.drawPngFile()`) [NEW in v1.6.4]**:
+  * Streamline image rendering across both Classic ESP32 CYD and ESP32-S3 RGB!
+  * Render full-color JPEG and PNG images from **LittleFS, SPIFFS, SD cards, SD_MMC**, or Flash arrays in **1 single line of code**:
+    * `tft.drawJpgFile(LittleFS, "/image.jpg", x, y);`
+    * `tft.drawPngFile(LittleFS, "/icon.png", x, y);`
+    * `tft.drawJpg(jpg_data, jpg_len, x, y);`
+    * `tft.drawPng(png_data, png_len, x, y);`
+  * **Zero Full-Frame RAM Buffering**: Streams MCU-blocks and scanlines directly into `pushImage()`.
+  * Fully supported across both direct screen and off-screen `TFT_eSprite` canvases!
+  * **Zero RAM / Flash penalty**: 100% opt-in architecture. If image decoder methods are not called in your sketch, exactly 0 bytes of flash or RAM overhead are incurred.
+* ⚡ **Universal ESP32-S3 Sunton vs Waveshare Runtime Auto-Detection [NEW in v1.6.4]**:
+  * Seamlessly unifies **Waveshare ESP32-S3-Touch-LCD** (4.3", 5.0", 7.0") and **Sunton ESP32-8048S Series** (8048S043, 8048S050, 8048S070) & **Guition JC8048W550**!
+  * Runtime probing checks I2C for the CH422G I/O Expander at address `0x24`:
+    * **Waveshare Mode (Expander Found)**: Routes backlight to CH422G IO2, Touch RST to IO1, Touch INT to GPIO 4, I2C to SDA 8 / SCL 9.
+    * **Sunton / Guition Mode (Direct GPIO)**: Automatically configures Direct GPIO 2 8-bit LEDC PWM backlight, GT911 Touch on I2C SDA 19 / SCL 20, Touch INT on GPIO 18, and Touch RST on GPIO 38!
+  * 8-bit hardware PWM dimming via `tft.setBacklightBrightness()` or `display.setBacklight()` works identically across both board ecosystems!
 
 * 🪄 **1-Line Universal Hardware Auto-Setup (`tft.autoSetup()`) [NEW in v1.6.0]**:
   * Eliminates 30–50 lines of duplicate hardware initialization boilerplate across all sketches!
@@ -158,7 +175,7 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 | **Waveshare ESP32-S3-Touch-LCD-4.3** | 4.3" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C SDA: 8, SCL: 9) |
 | **Sunton ESP32-8048S070 / S050 / S043** | 4.3" - 7.0" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | Direct GPIO (BL: GPIO 2, Touch: 19/20) * |
 
-> *\* Note on Sunton ESP32-8048S Series:* Sunton S3 boards do not include an onboard CH422G I/O expander and route the backlight directly to GPIO 2 PWM, with GT911 touch on I2C pins 19 & 20. The integrated `AMK_S3_RGB_Board` manager defaults to the Waveshare CH422G architecture.
+> *\* Note on Sunton ESP32-8048S & Guition Series [Fully Automated in v1.6.4]:* Sunton S3 boards route the backlight directly to GPIO 2 PWM, with GT911 touch on I2C pins 19 & 20 (INT: 18, RST: 38). In v1.6.4, `AMK_S3_RGB_Board` automatically detects the absence of CH422G at boot and switches seamlessly to Direct GPIO 2 PWM backlight and GPIO 19/20 I2C bus with zero configuration!
 
 ---
 
@@ -701,6 +718,26 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 
 ## 📝 Release History & Changelog
 
+### v1.6.4 (Hardware Decoder & ESP32-S3 Direct-GPIO Universal Release)
+* 🖼️ **1-Line Hardware JPEG & PNG Decoder Wrapper (`AMK_Image_Decoder.h`)**:
+  * Added high-performance 1-line image loading methods natively on `TFT_eSPI` and `TFT_eSprite`:
+    * `tft.drawJpgFile(fs, "/path.jpg", x, y);`
+    * `tft.drawPngFile(fs, "/path.png", x, y);`
+    * `tft.drawJpg(data, len, x, y);`
+    * `tft.drawPng(data, len, x, y);`
+  * Zero full-frame RAM buffering: Streams MCU blocks (JPEG) and scanlines (PNG) directly into `pushImage()`.
+  * Seamless support for LittleFS, SPIFFS, SD, and SD_MMC.
+  * Zero RAM or Flash overhead for sketches not calling image decoders (100% opt-in).
+* ⚡ **ESP32-S3 Direct-GPIO & Touch Auto-Detection Engine**:
+  * Automated runtime probing between Waveshare CH422G I/O Expander architecture and Sunton ESP32-8048S Series / Guition JC8048W550 direct GPIO architecture.
+  * Probes CH422G on I2C address `0x24`:
+    * If ACK $\rightarrow$ Waveshare Mode (CH422G IO2 backlight, IO1 touch RST, GPIO 4 touch INT, SDA 8 / SCL 9).
+    * If NACK $\rightarrow$ Direct GPIO Mode (Direct GPIO 2 LEDC PWM backlight, GT911 touch on SDA 19 / SCL 20, INT GPIO 18, RST GPIO 38).
+  * Direct 8-bit PWM dimming via `tft.setBacklightBrightness()` and `display.setBacklight()` works identically across all S3 boards.
+  * Dynamic model reflection: `display.modelName()` and `display.boardName()` report exact detected mode.
+* 📦 **New Example Sketch (`ImageDecoderDemo`)**:
+  * Demonstrates 1-line LittleFS JPEG and PNG image rendering with live touch feedback and fallback placeholders.
+
 ### v1.6.3 (Universal Hardware Expansion & Stability Release)
 * 🛡️ **Rock-Solid Synchronized Rendering Pipeline**:
   * Enforces strict pre-blit DMA synchronization (display.waitFlush()) and rock-solid scanline buffering across _fill, pushImage, and pushSprite.
@@ -890,10 +927,13 @@ ativeHeight(), and flexible 6-parameter lushRegion() overload to chipguy_S3_RGB
   * Standardized on **Rotation 3** across all library examples (USB port on left, MicroSD slot on top).
 * **Complete Example Suite**:
   * `QuickStart`: Minimal hardware test boilerplate.
+  * `Universal_AutoConfig`: Master all-in-one template with 1-line auto-setup and diagnostic swatches.
+  * `ImageDecoderDemo`: High-speed 1-line JPEG & PNG image rendering from LittleFS, SD, and Flash arrays.
   * `BasicTouchDemo`: Real-time crosshair coordinates and boundary diagnostics.
   * `TouchCalibration`: 4-corner interactive calibration and NVS flash storage.
   * `SpriteDemo`: High-performance 5-tab dashboard (`METER`, `WAVE`, `RGB/LDR`, `DRAW`, `LOGO`).
   * `FreeFontDemo`: 5-page interactive typography showcase (families, sizes, scaling, datums, smooth sprite telemetry).
+  * `ESP32_S3_RGB_Touch_Demo`: 800x480 interactive UI with multi-touch and Sunton/Waveshare auto-detection.
 
 ---
 

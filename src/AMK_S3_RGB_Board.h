@@ -3,12 +3,14 @@
 // AMK_S3_RGB_Board.h - Hardware Board Controller for ESP32-S3 RGB Display Boards
 //                      Designed for Waveshare ESP32-S3-Touch-LCD 4.3", 5.0", 7.0"
 //                      (ST7262 Parallel RGB + GT911 Capacitive Touch with CH422G IO Expander)
-//
-// NOTE: Sunton ESP32-8048Sxxx boards use direct ESP32 GPIOs without a CH422G expander
-//       and require board-specific direct pin maps (DE:40, VSYNC:41, HSYNC:39, PCLK:42, BL:2).
+//                      and Sunton ESP32-8048Sxxx / Guition JC8048W550
+//                      (ST7262 Parallel RGB + GT911 Capacitive Touch with Direct GPIO)
 //
 // Features:
-//   - Onboard CH422G IO Expander management (LCD Reset, Backlight, Touch Reset, Power)
+//   - Dynamic runtime auto-detection of Waveshare CH422G expander vs Sunton Direct GPIO
+//   - Automatic I2C bus reconfiguration (SDA 8/SCL 9 for Waveshare vs SDA 19/SCL 20 for Sunton)
+//   - Backlight PWM on Direct GPIO 2 (Sunton) or CH422G IO2 (Waveshare)
+//   - Capacitive touch reset sequence handling for both Expander IO1 and Direct GPIO 38
 //   - Threadsafe Wire bus with FreeRTOS mutex guard
 //   - Self-contained: No external board library dependency required!
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -30,7 +32,7 @@
 #define CH422G_PIN_USB_SEL   5     // USB/CAN Mux (LOW = USB)
 #define CH422G_PIN_LCD_PWR   6     // LCD VDD Power (HIGH = ON)
 
-// Default I2C pins for CH422G and GT911 on ESP32-S3 RGB boards
+// Default I2C pins for CH422G and GT911 on Waveshare ESP32-S3 RGB boards
 #ifndef WS_S3_I2C_SDA
 #define WS_S3_I2C_SDA        8
 #endif
@@ -39,6 +41,23 @@
 #endif
 #ifndef WS_S3_TP_INT
 #define WS_S3_TP_INT         4
+#endif
+
+// Default I2C pins for GT911 on Sunton ESP32-8048Sxxx RGB boards
+#ifndef SUNTON_S3_I2C_SDA
+#define SUNTON_S3_I2C_SDA    19
+#endif
+#ifndef SUNTON_S3_I2C_SCL
+#define SUNTON_S3_I2C_SCL    20
+#endif
+#ifndef SUNTON_S3_TP_INT
+#define SUNTON_S3_TP_INT     18
+#endif
+#ifndef SUNTON_S3_TP_RST
+#define SUNTON_S3_TP_RST     38
+#endif
+#ifndef SUNTON_S3_LCD_BL
+#define SUNTON_S3_LCD_BL     2
 #endif
 
 // Thread-safe Wire RAII Mutex Guard for multi-task / interrupt safety
@@ -78,17 +97,31 @@ public:
 
     AMK_S3_Board(TwoWire& wire = ::Wire) : Wire(wire) {}
 
-    bool hasExpander = true;
+    bool   hasExpander   = true;
+    bool   isSunton      = false;
+    int8_t backlightGpio = -1;
+    int8_t touchIntPin   = WS_S3_TP_INT;     // GPIO 4 (Waveshare) or GPIO 18 (Sunton)
+    int8_t touchRstPin   = -1;               // GPIO 38 (Sunton) or Expander IO1 (Waveshare)
+    int8_t i2cSdaPin     = WS_S3_I2C_SDA;    // GPIO 8 (Waveshare) or GPIO 19 (Sunton)
+    int8_t i2cSclPin     = WS_S3_I2C_SCL;    // GPIO 9 (Waveshare) or GPIO 20 (Sunton)
 
     void begin(int sda = WS_S3_I2C_SDA, int scl = WS_S3_I2C_SCL, uint32_t freq = 400000) {
         if (initialized) return;
-        Wire.begin(sda, scl, freq);
 
-        // Probe if CH422G IO Expander is present on I2C (Waveshare vs Sunton/Guition Direct GPIO)
+        // Step 1: Probe default or specified pins for CH422G IO Expander (Waveshare)
+        Wire.begin(sda, scl, freq);
         Wire.beginTransmission(CH422G_I2C_ADDR_CFG);
         hasExpander = (Wire.endTransmission() == 0);
 
         if (hasExpander) {
+            // Waveshare ESP32-S3-Touch-LCD detected (CH422G ACKed on 0x24)
+            isSunton = false;
+            backlightGpio = -1;
+            touchIntPin = WS_S3_TP_INT;
+            touchRstPin = -1;
+            i2cSdaPin = sda;
+            i2cSclPin = scl;
+
             // Initial shadow state: LCD power ON, Backlight ON, Touch normal, LCD normal, SD CS deselected
             shadow = (1 << CH422G_PIN_LCD_PWR) |
                      (1 << CH422G_PIN_LCD_BL)  |
@@ -97,9 +130,25 @@ public:
                      (1 << CH422G_PIN_SD_CS);
             writeShadow();
         } else {
-            // Direct GPIO board fallback (Sunton ESP32-8048S050 / Guition JC8048W550: Backlight GPIO 2)
-            pinMode(2, OUTPUT);
-            digitalWrite(2, HIGH);
+            // Direct GPIO board fallback (Sunton ESP32-8048Sxxx / Guition JC8048W550)
+            // Switch I2C to Sunton standard pins (SDA=19, SCL=20) if default Waveshare pins were used
+            if (sda == WS_S3_I2C_SDA && scl == WS_S3_I2C_SCL) {
+                Wire.end();
+                Wire.begin(SUNTON_S3_I2C_SDA, SUNTON_S3_I2C_SCL, freq);
+                i2cSdaPin = SUNTON_S3_I2C_SDA;
+                i2cSclPin = SUNTON_S3_I2C_SCL;
+            } else {
+                i2cSdaPin = sda;
+                i2cSclPin = scl;
+            }
+
+            isSunton = true;
+            backlightGpio = SUNTON_S3_LCD_BL; // Direct GPIO 2 Backlight
+            touchIntPin = SUNTON_S3_TP_INT;   // Direct GPIO 18 Touch INT
+            touchRstPin = SUNTON_S3_TP_RST;   // Direct GPIO 38 Touch RST
+
+            pinMode(backlightGpio, OUTPUT);
+            digitalWrite(backlightGpio, HIGH);
         }
         initialized = true;
     }
@@ -138,22 +187,55 @@ public:
     void lcdBacklight(bool on) {
         if (hasExpander) {
             writePin(CH422G_PIN_LCD_BL, on);
-        } else {
-            pinMode(2, OUTPUT);
-            digitalWrite(2, on ? HIGH : LOW);
+        } else if (backlightGpio >= 0) {
+            pinMode(backlightGpio, OUTPUT);
+            digitalWrite(backlightGpio, on ? HIGH : LOW);
         }
     }
 
-    void touchReset(int intPin = WS_S3_TP_INT) {
-        pinMode(intPin, OUTPUT);
-        digitalWrite(intPin, LOW);
-        delay(10);
-        writePin(CH422G_PIN_TP_RST, false);
-        delay(20);
-        writePin(CH422G_PIN_TP_RST, true);
-        delay(15);
-        pinMode(intPin, INPUT);
-        delay(50);
+    void setBacklight(uint8_t level) {
+        if (hasExpander) {
+            writePin(CH422G_PIN_LCD_BL, level > 0);
+        } else if (backlightGpio >= 0) {
+            pinMode(backlightGpio, OUTPUT);
+            analogWrite(backlightGpio, level);
+        }
+    }
+
+    int8_t backlightPin() const {
+        return backlightGpio;
+    }
+
+    void touchReset(int intPin = -1) {
+        int pin = (intPin >= 0) ? intPin : touchIntPin;
+        if (hasExpander) {
+            pinMode(pin, OUTPUT);
+            digitalWrite(pin, LOW);
+            delay(10);
+            writePin(CH422G_PIN_TP_RST, false);
+            delay(20);
+            writePin(CH422G_PIN_TP_RST, true);
+            delay(15);
+            pinMode(pin, INPUT);
+            delay(50);
+        } else {
+            // Direct GPIO Touch Reset (Sunton ESP32-8048Sxxx / Guition JC8048W550)
+            if (pin >= 0) {
+                pinMode(pin, OUTPUT);
+                digitalWrite(pin, LOW);
+            }
+            if (touchRstPin >= 0) {
+                pinMode(touchRstPin, OUTPUT);
+                digitalWrite(touchRstPin, LOW);
+                delay(20);
+                digitalWrite(touchRstPin, HIGH);
+                delay(15);
+            }
+            if (pin >= 0) {
+                pinMode(pin, INPUT);
+            }
+            delay(50);
+        }
     }
 };
 

@@ -1378,9 +1378,14 @@ bool chipguy_S3_RGB_display::begin(uint32_t pclk_hz, uint16_t rotation) {
 }
 
 void chipguy_S3_RGB_display::setBacklight(int percentage) {
-    // On this board the LCD backlight is a CH422G expander pin (no PWM), so
-    // brightness is on/off only: any positive percentage turns it on.
-    _board.lcdBacklight(percentage > 0);
+    if (_board.hasExpander) {
+        // On Waveshare the LCD backlight is a CH422G expander pin (no PWM)
+        _board.lcdBacklight(percentage > 0);
+    } else if (_board.backlightPin() >= 0) {
+        // On Sunton / Guition Direct GPIO boards, backlight has 8-bit LEDC PWM
+        uint8_t level = (uint8_t)map(constrain(percentage, 0, 100), 0, 100, 0, 255);
+        _board.setBacklight(level);
+    }
 }
 
 void chipguy_S3_RGB_display::setBacklight(bool on) {
