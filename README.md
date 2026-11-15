@@ -137,15 +137,15 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 * **Dual Touch Controller Engine (Resistive XPT2046 + Capacitive GT911 / CST820)**:
   * Runtime auto-probing on I2C (SDA: 33, SCL: 32) for capacitive touch chips (GT911 at 0x5D/0x14, CST820 at 0x15).
   * Automatically falls back to high-speed SPI XPT2046 resistive touch when capacitive is not present.
-  * Completely unified API: 	ft.getTouch(&x, &y) and 	ouch.read(x, y) work identically across resistive and capacitive models!
+  * Completely unified API: `tft.getTouch(&x, &y)` and `touch.read(x, y)` work identically across resistive and capacitive models!
 * **Half-Duplex 3-Wire SPI Read on GPIO13 (SDA)**:
   * Automatically probes panel ID registers bidirectionally over GPIO13 for panels lacking SDO wiring (e.g. ESP32-2432S032 ST7789), eliminating blank or distorted screens.
 * **Persistent NVS Hardware Overrides (cydrforce)**:
-  * Easily save hardware adjustments into ESP32 NVS flash (cydr_saveOverrides) for tricky Chinese clone boards: panel type, color order (RGB/BGR), inversion, MADCTL mirroring, SPI clock (40MHz / 27MHz / 20MHz), backlight pin, touch axes, and RGB LED pins.
-* **Bus Contention Protection (	ouchI2cLock)**:
+  * Easily save hardware adjustments into ESP32 NVS flash (`cydr_saveOverrides`) for tricky Chinese clone boards: panel type, color order (RGB/BGR), inversion, MADCTL mirroring, SPI clock (40MHz / 27MHz / 20MHz), backlight pin, touch axes, and RGB LED pins.
+* **Bus Contention Protection (touchI2cLock)**:
   * Prevents SPI display readbacks from colliding with I2C touch communications when GPIO33 is shared between I2C SDA and unpopulated XPT2046 CS lines.
 * **Display Framebuffer Readback Detection (cydr_readback_t)**:
-  * Probes and verifies whether pixel memory can be read back over GPIO12 (MISO), GPIO13 (half-duplex SDA), or unavailable (	ft.isReadbackSupported(), 	ft.getReadbackName()).
+  * Probes and verifies whether pixel memory can be read back over GPIO12 (MISO), GPIO13 (half-duplex SDA), or unavailable (`tft.isReadbackSupported()`, `tft.getReadbackName()`).
 
 ### 1. ESP32 Cheap Yellow Display (CYD) Series (Resistive & Capacitive Touch)
 
@@ -712,6 +712,7 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 | **`FreeFontDemo`** | Comprehensive typography showcase featuring 5 interactive pages: font families comparison, proportional point sizes, giant vector scaling (`setTextSize(2)`), accurate text datum alignment anchors, and smooth dynamic off-screen sprite telemetry. |
 | **`TouchCalibration`** | Interactive multi-stage calibration tool. Features 4-point crosshair calibration, pressure thresholding, jump filters, a live test drawing canvas, and persistent storage in NVS Flash. |
 | **`SpriteDemo`** | High-performance 5-tab UI dashboard: <br>• **`METER`**: Smooth 124x124 analog power gauge sprite + backlight brightness drag slider.<br>• **`WAVE`**: Real-time 270x110 oscilloscope waveform buffer with speed and pause controls.<br>• **`RGB/LDR`**: Onboard active-low RGB LED color tester and LDR photoresistor ambient light level bar.<br>• **`DRAW`**: Interactive touch drawing canvas with 7-color square palette selection and a Clear button.<br>• **`LOGO`**: AMK Studio splash screen with auto-detected board model, panel name, resolution, and RAM telemetry. |
+| **`ImageDecoderDemo`** | **Universal 1-Line JPEG & PNG Hardware Decoder Showcase [NEW in v1.6.4/v1.6.5]**. Demonstrates high-speed 1-line image loading (`tft.drawJpgFile()`, `tft.drawPngFile()`, `drawJpg()`, `drawPng()`) from Flash arrays, LittleFS, SPIFFS, and SD cards with zero full-frame RAM buffering and heap-safe decoding. |
 | **`ESP32_S3_RGB_Touch_Demo`** | **Universal ESP32-S3 Parallel RGB & Capacitive Multi-Touch showcase (800x480)**. Features high-speed direct framebuffer rendering, 3 interactive `TFT_eSPI_Button` controls, live touch point tracking with coordinates, and counter. |
 
 ---
@@ -756,7 +757,7 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
   * Enforces strict pre-blit DMA synchronization (display.waitFlush()) and rock-solid scanline buffering across _fill, pushImage, and pushSprite.
   * Completely eliminates DMA memory race conditions, vertical display displacement, and card edge ghosting/duplication on classic CYD resistive & capacitive panels.
 * 👆 **Resistive Touch Noise & Ghost-Click Suppression**:
-  * Defaulted 7-sample moving median filtering and minimum pressure thresholds in 	ft.autoSetup() (	ouch.setFilters(200, 50)).
+  * Defaulted 7-sample moving median filtering and minimum pressure thresholds in `tft.autoSetup()` (`touch.setFilters(200, 50)`).
   * Eliminates phantom ghost touches, high-impedance ADC jitter, and false release events on XPT2046 resistive panels out of the box.
 * 📚 **Universal Hardware Database & Profiles (AMK_Hardware_Profiles.h)**:
   * Comprehensive built-in hardware database extracted and verified against production schematics and the OWLOS flight radar core.
@@ -766,12 +767,10 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
     * **NM-CYD-C5 2.8"**: ESP32-C5 CYD form factor, ST7789, XPT2046 resistive touch (CS 1, IRQ 3), WS2812C RGB LED on GPIO 27, backlight on GPIO 25.
     * **Sunton ESP32-8048S050 / Guition JC8048W550C 5.0" RGB**: Direct GPIO 2 backlight fallback, GT911 touch (I2C SDA 19, SCL 20).
     * **Elecrow CrowPanel Advance 5.0" RGB**: ST7262 Parallel RGB, GT911 touch (I2C SDA 15, SCL 16).
-  * Added sketch-accessible helper APIs: 	ft.getBoardProfile(), 	ft.getAuxLedPin(), and 	ft.getAudioAmpPin().
-  * Enhanced 	ft.printHardwareReport() with MCU platform info, hardware notes, and onboard peripheral assignments.
+  * Added sketch-accessible helper APIs: `tft.getBoardProfile()`, `tft.getAuxLedPin()`, and `tft.getAudioAmpPin()`.
+  * Enhanced `tft.printHardwareReport()` with MCU platform info, hardware notes, and onboard peripheral assignments.
 * 🖥️ **S3 Parallel RGB & CYD Full API Parity**:
-  * Added 
-ativeWidth(), 
-ativeHeight(), and flexible 6-parameter lushRegion() overload to chipguy_S3_RGB_display.h, guaranteeing 100% binary-compatible sketch code across both Classic CYD and S3 RGB boards.
+  * Added `nativeWidth()`, `nativeHeight()`, and flexible 6-parameter `flushRegion()` overload to `chipguy_S3_RGB_display.h`, guaranteeing 100% binary-compatible sketch code across both Classic CYD and S3 RGB boards.
 * 🔒 **Strict Preservation of Global Hardware Standards (RULE[user_global])**:
   * Color order tables, MADCTL settings, and RGB/BGR definitions remain completely frozen with zero regression risk.
   * Backlight dynamic auto-detection (display.backlightPin()) and LDR 10-read boot priming remain strictly maintained.
@@ -845,7 +844,7 @@ ativeHeight(), and flexible 6-parameter lushRegion() overload to chipguy_S3_RGB
 * **Bus Contention Protection (cydr_touchI2cLock / cydr_touchI2cUnlock)**:
   * Prevents SPI display readbacks from colliding with I2C touch communications when GPIO33 is shared between I2C SDA and unpopulated XPT2046 CS lines.
 * **Display Framebuffer Readback Detection (cydr_readback_t)**:
-  * Added 	ft.isReadbackSupported() and 	ft.getReadbackName() to inspect hardware framebuffer readback capability (MISO, SDA, or None).
+  * Added `tft.isReadbackSupported()` and `tft.getReadbackName()` to inspect hardware framebuffer readback capability (MISO, SDA, or None).
 * **Enhanced Touch Calibration & New Example**:
   * Updated TouchCalibration with automatic capacitive touch detection (bypasses resistive 4-point calibration and jumps directly to interactive touch verification).
   * Added new **BoardDetect** standalone diagnostic example tool.
