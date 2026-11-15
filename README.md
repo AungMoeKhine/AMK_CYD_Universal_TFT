@@ -1,7 +1,7 @@
-# AMK_CYD_Universal_TFT
+﻿# AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.6.5-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.6.6-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD%20%2B%20S3%20RGB-2.4%22%20to%207.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
@@ -31,6 +31,26 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 ---
 
 ## 🚀 Key Features
+
+* 💻 **Ultra-Fast Hardware Text Terminal Companion (`AMK_Terminal.h`) [NEW in v1.6.6]**:
+  * Lightweight alternative to heavy GUI frameworks for logging, console output, and telemetry dashboards!
+  * **Zero Heap Allocation & Tiny Footprint**: Only **5 KB of static RAM** overhead reserved at startup.
+  * **Display Hardware Vertical Scrolling**: Uses panel hardware commands (`VSCRDEF` / `VSCRSADD`) on ILI9341, ST7789, and ST7796 to scroll text at lightning speed without redrawing previous rows.
+  * **Rich Typography & Formatting**: Full UTF-8 support, ANSI terminal colors (`CYDR_GREEN`, `CYDR_YELLOW`, etc.), box-drawing characters, and LVGL symbol sets (`LV_SYMBOL_WIFI`, `LV_SYMBOL_AUDIO`, etc.).
+  * **Character-Cell Touch Detection**: `term.pollTouch(col, row)` reports touch directly in character grid cells for instantaneous touch button interfaces.
+* 🔊 **Onboard Audio & Speaker Control (`tft.enableAudio()`, `tft.playBeep()`) [NEW in v1.6.6]**:
+  * Hardware-safe audio support for CYD onboard speakers (8-bit DAC on GPIO 26 + PAM8302 audio amplifier).
+  * **Automatic Amp Enable Pin Detection**: Intelligently identifies boards with PAM8302 shutdown control (active LOW on GPIO 4, e.g. ESP32-32E USB-C) vs boards where GPIO 4 is Red LED, preventing LED thrashing.
+  * **Pop-Free Turn-On Sequencing**: Parks the DAC at mid-scale (128) and settles coupling caps before asserting amp enable, eliminating audible speaker thumps and boot clicks.
+  * **1-Line Tone Generation**: `tft.playBeep(frequency, durationMs)` provides tactile audio click and alert feedback with automatic idle muting to eliminate background hiss.
+* 🔋 **Calibrated Battery ADC Telemetry (`tft.getBatteryVoltage()`, `tft.getBatteryPercentage()`) [NEW in v1.6.6]**:
+  * High-accuracy battery monitoring for battery-connector CYD models (ESP32-32E 2.8", 3.2", 3.5", 4.0", and ESP32-024).
+  * Automatically detects GPIO 34 voltage divider role (`tft.isBatteryPowered()`).
+  * Uses ESP32 factory eFuse calibrated millivolts (`analogReadMilliVolts(34)`) with 1:1 divider compensation ($V_{bat} = V_{adc} \times 2$).
+  * Built-in percentage calculator (`tft.getBatteryPercentage()`) with Li-ion discharge curve mapping.
+* 💾 **1-Line Standard SD Card Mounting (`tft.initSD()`) [NEW in v1.6.6]**:
+  * Mounts the onboard microSD / TF slot on universal VSPI lines (**CS: GPIO 5, SCK: GPIO 18, MISO: GPIO 19, MOSI: GPIO 23**) across all CYD models with a single call: `tft.initSD()`.
+  * Automatic high-speed 20 MHz audio streaming mode with automatic 4 MHz fallback for reliable card reads.
 
 * 🖼️ **1-Line Hardware JPEG & PNG Decoder Wrapper (`tft.drawJpgFile()`, `tft.drawPngFile()`) [NEW in v1.6.4]**:
   * Streamline image rendering across both Classic ESP32 CYD and ESP32-S3 RGB!
@@ -65,7 +85,11 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
   * **Adaptive 12-to-30 Point Grid ($4 \times 3$ to $6 \times 5$)**: Runs multi-sample ADC averaging with raw jitter rejection (`JITTER_RAW = 130`, `MIN_SAMPLES = 8`), statistical 2D linear regression (`linfit`), RMS error verification (`ACCEPT_RMS <= 6.0 px`), and hardware mirroring compensation.
   * **Automatic NVS Flash Persistence**: Commits calibrated boundaries and filter parameters to ESP32 NVS flash so subsequent boots load instantly.
   * **Hardware BOOT Pin Override**: Holding the CYD `BOOT` button (GPIO 0) at startup forces re-calibration on demand.
-* 💡 **Built-In Ambient Light Auto-Dimming (`tft.adjustBrightness()`) [NEW in v1.6.0]**:
+* 💡 **Built-In Ambient Light Auto-Dimming & Sensor Auto-Detection (`tft.adjustBrightness()`) [ENHANCED in v1.6.6]**:
+  * **Intelligent Physical LDR Auto-Detection**: Automatically probes GPIO 34 at boot (`tft.probeLdrPresence()`) and during runtime. Intelligently identifies whether an actual photoresistor (CDS) is physically populated on the PCB, or if the pads are empty (e.g. ELEGOO single USB-C 2.8" CYD, battery divider boards, ESP32-S3).
+  * **Zero Pitch-Black Dimming on Non-LDR Boards**: On boards without an LDR, automatically locks and maintains the screen backlight at a comfortable, flicker-free default level (`DEFAULT_SUITABLE_BACKLIGHT = 200` / 255 = ~78%) and prevents auto-dimming down to minimum floor (20).
+  * **Proven 0-1024 Ambient Lux Mapping**: On LDR-equipped boards, executes the verified moving-average formula `map(average, 0, 1024, 255, 20)` with 4-unit hysteresis deadband.
+  * **Query & Custom Fallback**: Provides `tft.hasLdrSensor()`, `tft.getDefaultBacklight()`, and `tft.setDefaultBacklight(level)`.
   * Execute `tft.adjustBrightness()` as the first line of `void loop()` for instant, flicker-free auto-dimming with an integrated 10-sample moving average buffer and 4-unit hysteresis deadband.
 * 🚥 **Built-In Universal RGB LED Helpers [NEW in v1.6.0]**:
   * Drive the onboard RGB LED effortlessly without worrying about Active-LOW polarity or pin variants: `tft.setRgbLed(r, g, b)`, `tft.turnLedOff()`, `tft.flashLed()`.
@@ -700,6 +724,8 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 
 | Example | Description |
 |:---|:---|
+| **`Terminal_Console_Demo`** | **Ultra-Fast Hardware Text Terminal Companion [NEW in v1.6.6]**. Demonstrates 5 KB static RAM text terminal (`AMK_Terminal.h`), panel hardware vertical scrolling (`VSCRDEF`/`VSCRSADD`), UTF-8 typography, ANSI terminal colors, battery ADC telemetry, beep feedback, and character-cell touch detection (`pollTouch`). |
+| **`MP3Player`** | **Universal SD Card MP3 Player with LVGL UI & Audio Amp Control [NEW in v1.6.6]**. Full-featured audio player utilizing `ESP8266Audio`, 8-bit DAC continuous DMA streaming, PAM8302 amplifier pop-free enable/disable sequencing (`tft.enableAudio()`), 1-line SD mounting (`tft.initSD()`), and interactive LVGL 9 touch UI. |
 | **`Universal_AutoConfig`** | **Master Auto-Configuration Template [NEW in v1.6.0]**. Demonstrates 1-line `tft.autoSetup(3)`, adaptive multi-point calibration (`tft.autoCalibrate()`), responsive hardware telemetry cards, 7-color verification bar, and live touch tracking with RGB LED sync. |
 | **`CYD_Universal_AutoConfig`** | Reference implementation of the hardware auto-detection engine, illustrating explicit step-by-step probing mechanics, LDR auto-dimming filter math, and Active-LOW LED control. |
 | **`QuickStart`** | Minimal boilerplate template showcasing hardware auto-detection, status logging, and a simple touch dot drawing loop. |
@@ -719,6 +745,29 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 
 ## 📝 Release History & Changelog
 
+### v1.6.6 (Hardware Text Terminal, PAM8302 Audio Amp, Battery Telemetry & SD Card Release)
+* 💻 **Ultra-Fast Hardware Text Terminal Companion (`AMK_Terminal.h`)**:
+  * Lightweight alternative to heavy GUI frameworks for logging, console output, and telemetry dashboards.
+  * **Zero Heap Allocation & Tiny Footprint**: Operates entirely within **5 KB of static RAM** reserved at startup.
+  * **Display Hardware Vertical Scrolling**: Direct hardware vertical scrolling commands (`VSCRDEF` / `VSCRSADD`) on ILI9341, ST7789, and ST7796 to scroll text at lightning speed without redrawing previous rows.
+  * **Rich Typography & Formatting**: Full UTF-8 support, ANSI terminal colors (`CYDR_GREEN`, `CYDR_YELLOW`, etc.), box-drawing characters, and LVGL symbol sets (`LV_SYMBOL_WIFI`, `LV_SYMBOL_AUDIO`, etc.).
+  * **Character-Cell Touch Detection**: `term.pollTouch(col, row)` reports touch directly in character grid cells for instantaneous touch button interfaces.
+* 🔊 **Onboard Audio & PAM8302 Amplifier Control (`tft.enableAudio()`, `tft.playBeep()`)**:
+  * Hardware-safe audio support for CYD onboard speakers (8-bit DAC on GPIO 26 + PAM8302 audio amplifier).
+  * **Automatic Amp Enable Pin Detection**: Intelligently identifies boards with PAM8302 shutdown control (active LOW on GPIO 4, e.g. ESP32-32E USB-C) vs boards where GPIO 4 is Red LED (`tft.audioAmpPin()`), preventing LED thrashing.
+  * **Pop-Free Turn-On Sequencing**: Parks the DAC at mid-scale (128) and settles coupling caps before asserting amp enable, eliminating audible speaker thumps and boot clicks.
+  * **1-Line Tone Generation**: `tft.playBeep(frequency, durationMs)` provides tactile audio click and alert feedback with automatic idle muting to eliminate background hiss.
+* 🔋 **Calibrated Battery ADC Telemetry (`tft.getBatteryVoltage()`, `tft.getBatteryPercentage()`)**:
+  * High-accuracy battery monitoring for battery-connector CYD models (ESP32-32E 2.8", 3.2", 3.5", 4.0", and ESP32-024).
+  * Automatically detects GPIO 34 voltage divider role (`tft.isBatteryPowered()`).
+  * Uses ESP32 factory eFuse calibrated millivolts (`analogReadMilliVolts(34)`) with 1:1 divider compensation ($V_{bat} = V_{adc} \times 2$).
+  * Built-in percentage calculator (`tft.getBatteryPercentage()`) with Li-ion discharge curve mapping.
+* 💾 **1-Line Standard SD Card Mounting (`tft.initSD()`)**:
+  * Mounts the onboard microSD / TF slot on universal VSPI lines (**CS: GPIO 5, SCK: GPIO 18, MISO: GPIO 19, MOSI: GPIO 23**) across all CYD models with a single call: `tft.initSD()`.
+  * Automatic high-speed 20 MHz audio streaming mode with automatic 4 MHz fallback for reliable card reads.
+* 📦 **New Example Sketches**:
+  * Added **`Terminal_Console_Demo`**: Showcases 5 KB RAM terminal, ANSI colors, hardware scrolling, battery telemetry, beep feedback, and touch cells.
+  * Added **`MP3Player`**: Full-featured SD card MP3 player with DAC continuous DMA, PAM8302 amp sequencing, and LVGL touch UI.
 ### v1.6.5 (Critical Patch: Heap-Safe PNGdec Engine & Image Decoder Stability)
 * 🛡️ **Critical Fix: Heap-Safe PNGdec Allocation (Zero Stack Overflow)**:
   * Dynamically allocates the 42 KB `PNG` decoder structure in Heap RAM via `new (std::nothrow) PNG()`, completely eliminating FreeRTOS 8 KB task stack overflows and watchdog timer reboot loops (`rst:0x8 (TG1WDT_SYS_RESET)`).

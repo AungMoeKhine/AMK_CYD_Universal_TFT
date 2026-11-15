@@ -20,6 +20,9 @@
 #include <FS.h>
 #include <math.h>
 #include <algorithm>
+#if __has_include(<SD.h>)
+#include <SD.h>
+#endif
 
 #if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(BOARD_ESP32_S3_RGB) || defined(BOARD_ESP32_S3_TOUCH_7) || defined(ARDUINO_WAVESHARE_ESP32_S3_TOUCH_LCD_7)
   #define AMK_BACKEND_ESP32_S3 1
@@ -245,15 +248,19 @@ static const uint8_t _amk_font5x7[] PROGMEM = {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  The sketch provides the display and touch objects. We reference them via
-//  extern so that tft.init() and touch.begin(display) use the SAME physical object.
+//  extern so that tft.init() and touch.begin(AMK_CYD_DISPLAY_VAR) use the SAME physical object.
 // ═══════════════════════════════════════════════════════════════════════════════
+#ifndef AMK_CYD_DISPLAY_VAR
+#define AMK_CYD_DISPLAY_VAR display
+#endif
+
 #if defined(AMK_BACKEND_ESP32_S3)
-extern AMK_S3_RGB_display display;
+extern AMK_S3_RGB_display AMK_CYD_DISPLAY_VAR;
 #ifndef AMK_CYD_NO_GLOBAL_TOUCH
 extern AMK_S3_touch       touch;
 #endif
 #else
-extern chipguy_CYD_resistive_display display;
+extern chipguy_CYD_resistive_display AMK_CYD_DISPLAY_VAR;
 #ifndef AMK_CYD_NO_GLOBAL_TOUCH
 extern chipguy_CYD_resistive_touch   touch;
 #endif
@@ -281,9 +288,10 @@ protected:
     int8_t   _glyph_ab    = 0;
     int8_t   _glyph_bb    = 0;
 
-    // Hardware Auto-Setup & Driver State (v1.6.0)
+    // Hardware Auto-Setup & Driver State (v1.6.6)
+    static constexpr uint8_t PROPER_NON_LDR_BACKLIGHT = 180; // Proper comfortable brightness for boards lacking LDR (~70%)
     bool     _autoBrightnessActive  = true;
-    uint8_t  _activeBacklightLevel  = 160;
+    uint8_t  _activeBacklightLevel  = 160; // Standard default backlight
     int      _lastAppliedBrightness = -1;
     bool     _hasLdrSensor          = true;
     bool     _isBattery             = false;
@@ -296,23 +304,31 @@ protected:
     unsigned long _lastLdrSampleTime= 0;
 
     virtual void _pixel(int32_t x, int32_t y, uint16_t color) {
+#ifndef AMK_CYD_DISPLAY_VAR
+#define AMK_CYD_DISPLAY_VAR display
+#endif
+
 #if defined(AMK_BACKEND_ESP32_S3)
-        display.drawPixel(x, y, color);
+        AMK_CYD_DISPLAY_VAR.drawPixel(x, y, color);
 #else
-        if (x < 0 || y < 0 || x >= display.width() || y >= display.height()) return;
+        if (x < 0 || y < 0 || x >= AMK_CYD_DISPLAY_VAR.width() || y >= AMK_CYD_DISPLAY_VAR.height()) return;
         alignas(4) static uint16_t _px;
-        display.waitFlush();
+        AMK_CYD_DISPLAY_VAR.waitFlush();
         _px = __builtin_bswap16(color);
-        display.flushRegion(x, y, x, y, &_px);
+        AMK_CYD_DISPLAY_VAR.flushRegion(x, y, x, y, &_px);
 #endif
     }
 
     virtual void _fill(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t color) {
+#ifndef AMK_CYD_DISPLAY_VAR
+#define AMK_CYD_DISPLAY_VAR display
+#endif
+
 #if defined(AMK_BACKEND_ESP32_S3)
-        display.fillRect(x, y, w, h, color);
+        AMK_CYD_DISPLAY_VAR.fillRect(x, y, w, h, color);
 #else
         if (w <= 0 || h <= 0) return;
-        int16_t sw = display.width(), sh = display.height();
+        int16_t sw = AMK_CYD_DISPLAY_VAR.width(), sh = AMK_CYD_DISPLAY_VAR.height();
         if (x < 0) { w += x; x = 0; }
         if (y < 0) { h += y; y = 0; }
         if (x + w > sw) w = sw - x;
@@ -322,11 +338,11 @@ protected:
         alignas(4) static uint16_t _lineBuf[800];
         uint16_t be = __builtin_bswap16(color);
         for (int32_t row = 0; row < h; row++) {
-            display.waitFlush();
+            AMK_CYD_DISPLAY_VAR.waitFlush();
             for (int32_t i = 0; i < w; i++) _lineBuf[i] = be;
-            display.flushRegion(x, y + row, x + w - 1, y + row, _lineBuf);
+            AMK_CYD_DISPLAY_VAR.flushRegion(x, y + row, x + w - 1, y + row, _lineBuf);
         }
-        display.waitFlush();
+        AMK_CYD_DISPLAY_VAR.waitFlush();
 #endif
     }
 
@@ -374,9 +390,9 @@ protected:
                                 _charBuf[(row * scale + sy) * cw + col * scale + sx] = clr;
                     }
                 }
-                display.waitFlush();
-                display.flushRegion(x, y, x + cw - 1, y + ch - 1, _charBuf);
-                display.waitFlush();
+                AMK_CYD_DISPLAY_VAR.waitFlush();
+                AMK_CYD_DISPLAY_VAR.flushRegion(x, y, x + cw - 1, y + ch - 1, _charBuf);
+                AMK_CYD_DISPLAY_VAR.waitFlush();
             } else {
                 for (int col = 0; col < 5; col++) {
                     uint8_t line = pgm_read_byte(&glyph[col]);
@@ -474,10 +490,56 @@ public:
 
     virtual bool isSprite() const { return false; }
 
+    // ── Auto-Detect Physical Presence of LDR Sensor on GPIO 34 ──
+    bool probeLdrPresence() {
+#if defined(AMK_BACKEND_ESP32_S3)
+        return false;
+#else
+        if (_isBattery) return false;
+        const AMK_BoardProfile* prof = getBoardProfile();
+        if (prof && prof->pinLdr < 0) return false;
+
+        pinMode(34, INPUT);
+        uint32_t sum = 0;
+        for (int i = 0; i < 8; i++) {
+            sum += analogRead(34);
+            delayMicroseconds(200);
+        }
+        uint16_t avg = sum / 8;
+
+        // Open unpopulated pad or pull-up saturation:
+        // On CYD boards without an LDR (e.g. ELEGOO single USB-C, or batches with missing CDS),
+        // the pin floats or is pulled to 3.3V rail by onboard pull-up (avg >= 4070).
+        if (avg >= 4070) {
+            return false;
+        }
+        return true;
+#endif
+    }
+
     void init() {
-        display.begin();
+        AMK_CYD_DISPLAY_VAR.begin();
 #ifndef AMK_CYD_NO_GLOBAL_TOUCH
-        touch.begin(display);
+        touch.begin(AMK_CYD_DISPLAY_VAR);
+#endif
+#if !defined(AMK_BACKEND_ESP32_S3)
+        int8_t gpio34Role = AMK_CYD_DISPLAY_VAR.gpio34IsBattery();
+        _isBattery = (gpio34Role == 1);
+        _redPin   = AMK_CYD_DISPLAY_VAR.redLedPin();
+        _greenPin = AMK_CYD_DISPLAY_VAR.greenLedPin();
+        _bluePin  = AMK_CYD_DISPLAY_VAR.blueLedPin();
+
+        // Auto-detect physical LDR sensor presence
+        _hasLdrSensor = probeLdrPresence();
+        if (!_hasLdrSensor) {
+            _activeBacklightLevel = PROPER_NON_LDR_BACKLIGHT;
+            _autoBrightnessActive = false;
+        }
+#else
+        _hasLdrSensor = false;
+        _isBattery = false;
+        _activeBacklightLevel = PROPER_NON_LDR_BACKLIGHT;
+        _autoBrightnessActive = false;
 #endif
     }
     void begin() { init(); }
@@ -503,11 +565,8 @@ public:
             analogWrite(blPin, _activeBacklightLevel);
         }
 
-        // 3. Auto-Detect GPIO 34 Role (LDR Light Sensor vs Battery Divider)
+        // 3. Auto-Configure LDR Light Sensor (if present)
 #if !defined(AMK_BACKEND_ESP32_S3)
-        int8_t gpio34Role = display.gpio34IsBattery();
-        _isBattery = (gpio34Role == 1);
-        _hasLdrSensor = (gpio34Role != 1);
         if (_hasLdrSensor) {
             pinMode(34, INPUT);
             // Prime the 10-read moving average filter at boot per hardware standard
@@ -515,17 +574,19 @@ public:
                 adjustBrightness();
                 delay(10);
             }
+        } else {
+            // No physical LDR: lock display at comfortable default level (200 / 255, ~78%)
+            if (blPin > 0) {
+                analogWrite(blPin, _activeBacklightLevel);
+            }
         }
-#else
-        _hasLdrSensor = false;
-        _isBattery = false;
 #endif
 
         // 4. Auto-Detect RGB LED Pins & Initialize Active-LOW States
 #if !defined(AMK_BACKEND_ESP32_S3)
-        _redPin   = display.redLedPin();
-        _greenPin = display.greenLedPin();
-        _bluePin  = display.blueLedPin();
+        _redPin   = AMK_CYD_DISPLAY_VAR.redLedPin();
+        _greenPin = AMK_CYD_DISPLAY_VAR.greenLedPin();
+        _bluePin  = AMK_CYD_DISPLAY_VAR.blueLedPin();
 
         if (_redPin >= 0)   { pinMode(_redPin, OUTPUT);   digitalWrite(_redPin, HIGH); }
         if (_greenPin >= 0) { pinMode(_greenPin, OUTPUT); digitalWrite(_greenPin, HIGH); }
@@ -536,7 +597,7 @@ public:
 
         // 5. Auto-Detect & Initialize Touch Controller
 #ifndef AMK_CYD_NO_GLOBAL_TOUCH
-        touch.begin(display);
+        touch.begin(AMK_CYD_DISPLAY_VAR);
         touch.setRotation(rotation);
         if (!touch.capacitive()) {
             touch.loadCalibration();
@@ -592,7 +653,7 @@ public:
         Serial.println("\n[AMK Touch] =====================================================");
         Serial.printf("[AMK Touch] Launching Adaptive Multi-Point Calibration Engine\n");
         Serial.printf("[AMK Touch] Board: %s | Display: %dx%d (Rot %d)\n",
-                      display.modelName(), width(), height(), getRotation());
+                      AMK_CYD_DISPLAY_VAR.modelName(), width(), height(), getRotation());
         Serial.println("[AMK Touch] =====================================================");
 
         // Turn backlight to full brightness for crystal-clear crosshair viewing
@@ -879,7 +940,7 @@ public:
 #endif
     }
 
-    // ── Ambient Light Auto-Dimming ──
+    // ── Ambient Light Auto-Dimming (Hardcore Standard: map 0-1024 -> 255-20) ──
     void adjustBrightness() {
         uint8_t blPin = backlightPin();
         if (blPin == 0 || !_autoBrightnessActive || !_hasLdrSensor) return;
@@ -892,6 +953,7 @@ public:
             _ldrReadIndex = (_ldrReadIndex + 1) % 10;
 
             long average = _ldrTotal / 10;
+            // HARDCORE FROZEN STANDARD: Never alter 0-1024 mapping
             int target = constrain(map(average, 0, 1024, 255, 20), 20, 255);
 
             // 4-unit hysteresis deadband prevents light sensor flicker & PWM thrashing
@@ -918,9 +980,13 @@ public:
         if (blPin > 0) {
             analogWrite(blPin, brightness);
         }
+#ifndef AMK_CYD_DISPLAY_VAR
+#define AMK_CYD_DISPLAY_VAR display
+#endif
+
 #if defined(AMK_BACKEND_ESP32_S3)
         else {
-            display.setBacklight(brightness > 0 ? 100 : 0);
+            AMK_CYD_DISPLAY_VAR.setBacklight(brightness > 0 ? 100 : 0);
         }
 #endif
     }
@@ -955,36 +1021,128 @@ public:
     int8_t blueLedPin()   const { return _bluePin; }
     bool   hasLdrSensor() const { return _hasLdrSensor; }
     bool   isBattery()    const { return _isBattery; }
+    uint8_t getProperNonLdrBacklight() const { return PROPER_NON_LDR_BACKLIGHT; }
+    uint8_t getActiveBacklight()       const { return _activeBacklightLevel; }
+    int     getLdrRaw()                const { return _ldrReadings[(_ldrReadIndex + 9) % 10]; }
+    long    getLdrAverage()            const { return _ldrTotal / 10; }
 
-    float readBatteryVoltage() {
+    bool isBatteryPowered() const { return _isBattery; }
+
+    // Enhanced ADC battery voltage calculation with calibrated millivolts
+    float getBatteryVoltage() {
         if (!_isBattery) return 0.0f;
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && (ESP_ARDUINO_VERSION_MAJOR >= 2)
+        uint32_t mv = analogReadMilliVolts(34);
+        return (mv * 2.0f) / 1000.0f; // 1:1 voltage divider (cell / 2) -> Volts
+#else
         int raw = analogRead(34);
-        return (raw / 4095.0f) * 3.3f * 2.0f; // cell/2 divider
+        return (raw / 4095.0f) * 3.3f * 2.0f;
+#endif
     }
 
-    const char* modelName() const { return display.modelName(); }
-    const char* panelName() const { return display.panelName(); }
-    const AMK_BoardProfile* getBoardProfile() const { return AMK_findProfileByName(display.modelName()); }
+    float readBatteryVoltage() { return getBatteryVoltage(); }
+
+    // Estimate battery percentage (3.2V = 0%, 4.2V = 100%)
+    int getBatteryPercentage() {
+        if (!_isBattery) return -1;
+        float v = getBatteryVoltage();
+        if (v <= 3.2f) return 0;
+        if (v >= 4.2f) return 100;
+        int pct = (int)((v - 3.2f) / (4.2f - 3.2f) * 100.0f);
+        return constrain(pct, 0, 100);
+    }
+
+#if !defined(AMK_BACKEND_ESP32_S3)
+    int8_t audioAmpPin() const {
+        int8_t p = getAudioAmpPin();
+        if (p >= 0) return p;
+        if (_redPin == 22) return 4;
+        return -1;
+    }
+
+    // Enable or disable onboard PAM8302 audio amplifier (active LOW on GPIO 4)
+    void enableAudio(bool enable = true) {
+        int8_t pin = audioAmpPin();
+        if (pin >= 0) {
+            pinMode(pin, OUTPUT);
+            if (enable) {
+                // Anti-pop sequence: Park DAC at mid-scale (128) first, let coupling cap settle, then pull LOW
+                dacWrite(26, 128);
+                delay(15);
+                digitalWrite(pin, LOW);  // Active-LOW enable turns ON PAM8302
+            } else {
+                // Shutdown sequence: De-assert amp HIGH before unparking DAC
+                digitalWrite(pin, HIGH); // Shutdown PAM8302
+                dacWrite(26, 128);
+            }
+        }
+    }
+
+    // Play clean audio beep tone on DAC GPIO26 with pop-free sequencing
+    void playBeep(uint16_t freq = 2000, uint16_t durationMs = 100) {
+        enableAudio(true);
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && (ESP_ARDUINO_VERSION_MAJOR >= 3)
+        ledcAttach(26, freq, 8);
+        ledcWriteTone(26, freq);
+        delay(durationMs);
+        ledcWriteTone(26, 0);
+        ledcDetach(26);
+#else
+        ledcAttachPin(26, 0);
+        ledcWriteTone(0, freq);
+        delay(durationMs);
+        ledcWriteTone(0, 0);
+        ledcDetachPin(26);
+#endif
+        dacWrite(26, 128);
+        enableAudio(false); // Shutdown amp when idle to eliminate hiss/clicks
+    }
+#else
+    int8_t audioAmpPin() const { return -1; }
+    void enableAudio(bool enable = true) { (void)enable; }
+    void playBeep(uint16_t freq = 2000, uint16_t durationMs = 100) { (void)freq; (void)durationMs; }
+#endif
+
+    // Standard 1-Line SD Card Mounting on Universal VSPI Pins (CS 5, SCK 18, MISO 19, MOSI 23)
+    bool initSD(uint32_t freq = 20000000) {
+#if __has_include(<SD.h>)
+        if (!SD.begin(5, SPI, freq)) {
+            SD.end();
+            return SD.begin(5, SPI, 4000000); // 4 MHz fallback
+        }
+        return true;
+#else
+        return false;
+#endif
+    }
+
+    const char* modelName() const { return AMK_CYD_DISPLAY_VAR.modelName(); }
+    const char* panelName() const { return AMK_CYD_DISPLAY_VAR.panelName(); }
+    const AMK_BoardProfile* getBoardProfile() const { return AMK_findProfileByName(AMK_CYD_DISPLAY_VAR.modelName()); }
     int8_t getAuxLedPin() const { const AMK_BoardProfile* p = getBoardProfile(); return p ? p->pinAuxLed : -1; }
     int8_t getAudioAmpPin() const { const AMK_BoardProfile* p = getBoardProfile(); return p ? p->pinAudioAmp : -1; }
-    uint8_t diagonalTenths() const { return display.diagonalTenths(); }
-    int16_t nativeWidth() const { return display.nativeWidth(); }
-    int16_t nativeHeight() const { return display.nativeHeight(); }
+    uint8_t diagonalTenths() const { return AMK_CYD_DISPLAY_VAR.diagonalTenths(); }
+    int16_t nativeWidth() const { return AMK_CYD_DISPLAY_VAR.nativeWidth(); }
+    int16_t nativeHeight() const { return AMK_CYD_DISPLAY_VAR.nativeHeight(); }
 
     void printHardwareReport() {
         Serial.println("\n=================================================================");
         Serial.println("         AMK_CYD_Universal_TFT Universal Hardware Report         ");
         Serial.println("=================================================================");
-        Serial.printf(" Board Model:         %s\n", display.modelName());
-        Serial.printf(" Display Panel:       %s\n", display.panelName());
-        Serial.printf(" Native Resolution:   %d x %d pixels\n", display.nativeWidth(), display.nativeHeight());
+        Serial.printf(" Board Model:         %s\n", AMK_CYD_DISPLAY_VAR.modelName());
+        Serial.printf(" Display Panel:       %s\n", AMK_CYD_DISPLAY_VAR.panelName());
+        Serial.printf(" Native Resolution:   %d x %d pixels\n", AMK_CYD_DISPLAY_VAR.nativeWidth(), AMK_CYD_DISPLAY_VAR.nativeHeight());
         Serial.printf(" Active Resolution:   %d x %d pixels (Rotation %d)\n", width(), height(), getRotation());
-        if (display.diagonalTenths() > 0) {
-            Serial.printf(" Screen Diagonal:     %.1f inches\n", display.diagonalTenths() / 10.0f);
+        if (AMK_CYD_DISPLAY_VAR.diagonalTenths() > 0) {
+            Serial.printf(" Screen Diagonal:     %.1f inches\n", AMK_CYD_DISPLAY_VAR.diagonalTenths() / 10.0f);
         }
         if (backlightPin() > 0) {
             Serial.printf(" Backlight Pin:       GPIO %u (Auto-detected by library)\n", backlightPin());
         }
+#ifndef AMK_CYD_DISPLAY_VAR
+#define AMK_CYD_DISPLAY_VAR display
+#endif
+
 #if defined(AMK_BACKEND_ESP32_S3)
         else {
             Serial.println(" Backlight Pin:       CH422G I/O Expander IO2 (Auto-detected)");
@@ -994,17 +1152,24 @@ public:
         Serial.printf(" Color Order:         %s (Factory MADCTL verified)\n", isBGR() ? "BGR" : "RGB");
         Serial.printf(" 16-bit Byte Swap:    %s\n", getSwapBytes() ? "Enabled (true)" : "Disabled");
 #if !defined(AMK_BACKEND_ESP32_S3)
-        Serial.printf(" SPI Bus Frequency:   %u MHz\n", (unsigned)(display.spiClock() / 1000000));
+        Serial.printf(" SPI Bus Frequency:   %u MHz\n", (unsigned)(AMK_CYD_DISPLAY_VAR.spiClock() / 1000000));
 #endif
 #ifndef AMK_CYD_NO_GLOBAL_TOUCH
         Serial.printf(" Touch Controller:    %s (%s)\n", touch.chipName(), touch.capacitive() ? "Capacitive I2C" : "Resistive SPI");
 #endif
 #if !defined(AMK_BACKEND_ESP32_S3)
-        Serial.printf(" Bus Architecture:    %s\n", display.board() == CYDR_BOARD_OWN_TOUCH ? "Dedicated Touch Bus" : "Shared Display SPI Bus");
+        Serial.printf(" Bus Architecture:    %s\n", AMK_CYD_DISPLAY_VAR.board() == CYDR_BOARD_OWN_TOUCH ? "Dedicated Touch Bus" : "Shared Display SPI Bus");
         Serial.printf(" Display Readback:    %s\n", getReadbackName());
         Serial.printf(" RGB LED Pins:        Red: %d | Green: %d | Blue: %d (Active-LOW)\n", _redPin, _greenPin, _bluePin);
-        Serial.printf(" GPIO 34 Role:        %s\n", _isBattery ? "Battery Voltage Divider" : (_hasLdrSensor ? "Light Dependent Resistor (LDR)" : "Default"));
-        const char* hint = display.powerOffHint();
+        if (_isBattery) {
+            Serial.println(" GPIO 34 Role:        Battery Voltage Divider (LDR auto-dim disabled)");
+        } else if (_hasLdrSensor) {
+            Serial.println(" GPIO 34 Role:        Light Dependent Resistor (LDR Auto-Dimming Active)");
+        } else {
+            Serial.printf(" GPIO 34 Role:        No LDR Detected -> Auto-Set Backlight (%d / 255, ~%d%%)\n",
+                          _activeBacklightLevel, (int)(_activeBacklightLevel * 100 / 255));
+        }
+        const char* hint = AMK_CYD_DISPLAY_VAR.powerOffHint();
         if (hint) Serial.printf(" Power-Off Hint:      %s\n", hint);
 #endif
         const AMK_BoardProfile* prof = getBoardProfile();
@@ -1019,23 +1184,23 @@ public:
     }
 
     void setRotation(uint8_t r) {
-        display.setRotation(r);
+        AMK_CYD_DISPLAY_VAR.setRotation(r);
 #ifndef AMK_CYD_NO_GLOBAL_TOUCH
         touch.setRotation(r);
 #endif
     }
-    uint8_t getRotation() const       { return display.rotation(); }
+    uint8_t getRotation() const       { return AMK_CYD_DISPLAY_VAR.rotation(); }
     void setSwapBytes(bool swap)      { _swapBytes = swap; }
     bool getSwapBytes() const         { return _swapBytes;         }
-    void setBGR(bool bgr)             { display.setBGR(bgr);       }
-    bool isBGR() const                { return display.isBGR();    }
-    void setPanel(cydr_panel_t panel) { display.setPanel(panel);   }
-    cydr_panel_t getPanel() const     { return display.panel();    }
-    void setMirrorX(bool mirror)      { display.setMirrorX(mirror); }
-    bool isMirrorX() const            { return display.isMirrorX(); }
-    void setBacklight(int pct)        { display.setBacklight(pct); }
-    void setBacklightPin(uint8_t pin) { display.setBacklightPin(pin); }
-    uint8_t backlightPin() const      { return display.backlightPin(); }
+    void setBGR(bool bgr)             { AMK_CYD_DISPLAY_VAR.setBGR(bgr);       }
+    bool isBGR() const                { return AMK_CYD_DISPLAY_VAR.isBGR();    }
+    void setPanel(cydr_panel_t panel) { AMK_CYD_DISPLAY_VAR.setPanel(panel);   }
+    cydr_panel_t getPanel() const     { return AMK_CYD_DISPLAY_VAR.panel();    }
+    void setMirrorX(bool mirror)      { AMK_CYD_DISPLAY_VAR.setMirrorX(mirror); }
+    bool isMirrorX() const            { return AMK_CYD_DISPLAY_VAR.isMirrorX(); }
+    void setBacklight(int pct)        { AMK_CYD_DISPLAY_VAR.setBacklight(pct); }
+    void setBacklightPin(uint8_t pin) { AMK_CYD_DISPLAY_VAR.setBacklightPin(pin); }
+    uint8_t backlightPin() const      { return AMK_CYD_DISPLAY_VAR.backlightPin(); }
 
     // ── Universal 1-Line Image Rendering Methods (defined in AMK_Image_Decoder.h) ──
     bool drawJpg(const uint8_t *data, uint32_t len, int16_t x, int16_t y, uint16_t maxWidth = 0, uint16_t maxHeight = 0);
@@ -1044,33 +1209,37 @@ public:
     bool drawPngFile(fs::FS &fs, const char *path, int16_t x, int16_t y, uint16_t maxWidth = 0, uint16_t maxHeight = 0);
     void setSpiClock(uint32_t hz) {
 #if !defined(AMK_BACKEND_ESP32_S3)
-        display.setSpiClock(hz);
+        AMK_CYD_DISPLAY_VAR.setSpiClock(hz);
 #endif
     }
     uint32_t getSpiClock() const {
 #if !defined(AMK_BACKEND_ESP32_S3)
-        return display.spiClock();
+        return AMK_CYD_DISPLAY_VAR.spiClock();
 #else
         return 0;
 #endif
     }
-    virtual int16_t width()  const    { return display.width();    }
-    virtual int16_t height() const    { return display.height();   }
+    virtual int16_t width()  const    { return AMK_CYD_DISPLAY_VAR.width();    }
+    virtual int16_t height() const    { return AMK_CYD_DISPLAY_VAR.height();   }
 
     virtual void fillScreen(uint16_t color) {
+#ifndef AMK_CYD_DISPLAY_VAR
+#define AMK_CYD_DISPLAY_VAR display
+#endif
+
 #if defined(AMK_BACKEND_ESP32_S3)
-        display.fillScreen(color);
+        AMK_CYD_DISPLAY_VAR.fillScreen(color);
 #else
         _fill(0, 0, width(), height(), color);
 #endif
     }
-    void invertDisplay(bool invert)   { display.invertDisplay(invert); }
+    void invertDisplay(bool invert)   { AMK_CYD_DISPLAY_VAR.invertDisplay(invert); }
 
     virtual uint16_t readPixel(int32_t x, int32_t y) const { (void)x; (void)y; return 0; }
 
     virtual void drawPixel(int32_t x, int32_t y, uint16_t color) {
         _pixel(x, y, color);
-        if (!isSprite()) display.waitFlush();
+        if (!isSprite()) AMK_CYD_DISPLAY_VAR.waitFlush();
     }
 
     virtual void drawFastHLine(int32_t x, int32_t y, int32_t w, uint16_t color) {
@@ -1105,7 +1274,7 @@ public:
             _pixel(cx + y, cy + x, color); _pixel(cx - y, cy + x, color);
             _pixel(cx + y, cy - x, color); _pixel(cx - y, cy - x, color);
         }
-        if (!isSprite()) display.waitFlush();
+        if (!isSprite()) AMK_CYD_DISPLAY_VAR.waitFlush();
     }
 
     void fillCircle(int32_t cx, int32_t cy, int32_t r, uint16_t color) {
@@ -1150,7 +1319,7 @@ public:
             s += rx2 * ((4 * y) + 6);
             y--;
         } while (y >= 0);
-        if (!isSprite()) display.waitFlush();
+        if (!isSprite()) AMK_CYD_DISPLAY_VAR.waitFlush();
     }
 
     void fillEllipse(int32_t cx, int32_t cy, int32_t rx, int32_t ry, uint16_t color) {
@@ -1226,7 +1395,7 @@ public:
             _pixel(x + w - 1 - r + xi, y + h - 1 - r + yi, color);
             _pixel(x + w - 1 - r + yi, y + h - 1 - r + xi, color);
         }
-        if (!isSprite()) display.waitFlush();
+        if (!isSprite()) AMK_CYD_DISPLAY_VAR.waitFlush();
     }
 
     // Line (Bresenham)
@@ -1242,7 +1411,7 @@ public:
             if (e2 > -dy) { err -= dy; x0 += sx; }
             if (e2 <  dx) { err += dx; y0 += sy; }
         }
-        if (!isSprite()) display.waitFlush();
+        if (!isSprite()) AMK_CYD_DISPLAY_VAR.waitFlush();
     }
 
     // Triangle primitives
@@ -1351,6 +1520,10 @@ public:
     // Image rendering
     virtual void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t *data) {
         if (!data || w <= 0 || h <= 0) return;
+#ifndef AMK_CYD_DISPLAY_VAR
+#define AMK_CYD_DISPLAY_VAR display
+#endif
+
 #if defined(AMK_BACKEND_ESP32_S3)
         if (_swapBytes) {
             int16_t sw = width(), sh = height();
@@ -1365,10 +1538,10 @@ public:
                 if (curW <= 0) continue;
                 const uint16_t *srcLine = data + (row * w) + srcStart;
                 for (int32_t i = 0; i < curW; i++) _imgLineBuf[i] = __builtin_bswap16(srcLine[i]);
-                display.pushImage(dstX, curY, curW, 1, _imgLineBuf);
+                AMK_CYD_DISPLAY_VAR.pushImage(dstX, curY, curW, 1, _imgLineBuf);
             }
         } else {
-            display.pushImage(x, y, w, h, data);
+            AMK_CYD_DISPLAY_VAR.pushImage(x, y, w, h, data);
         }
 #else
         int16_t sw = width(), sh = height();
@@ -1390,14 +1563,14 @@ public:
             if (dstX + curW > sw) curW = sw - dstX;
             if (curW <= 0) continue;
 
-            display.waitFlush();
+            AMK_CYD_DISPLAY_VAR.waitFlush();
             const uint16_t *srcLine = data + (row * w) + srcStart;
             for (int32_t i = 0; i < curW; i++) {
                 _imgLineBuf[i] = _swapBytes ? __builtin_bswap16(srcLine[i]) : srcLine[i];
             }
-            display.flushRegion(dstX, curY, dstX + curW - 1, curY, _imgLineBuf);
+            AMK_CYD_DISPLAY_VAR.flushRegion(dstX, curY, dstX + curW - 1, curY, _imgLineBuf);
         }
-        display.waitFlush();
+        AMK_CYD_DISPLAY_VAR.waitFlush();
 #endif
     }
 
@@ -1421,7 +1594,7 @@ public:
                 }
             }
         }
-        if (!isSprite()) display.waitFlush();
+        if (!isSprite()) AMK_CYD_DISPLAY_VAR.waitFlush();
     }
 
     virtual void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data, uint16_t transparent) {
@@ -1516,7 +1689,7 @@ public:
             for (size_t i = 0; i < len; i++) {
                 curX += _drawCharGFX(curX, baselineY, (unsigned char)str[i], _textFg, _textBg, scale);
             }
-            if (!isSprite()) display.waitFlush();
+            if (!isSprite()) AMK_CYD_DISPLAY_VAR.waitFlush();
             return tw;
         }
 
@@ -1552,7 +1725,7 @@ public:
 
         for (int i = 0; i < len; i++)
             _drawChar(x + i * 6 * scale, y, str[i], _textFg, _textBg, scale);
-        if (!isSprite()) display.waitFlush();
+        if (!isSprite()) AMK_CYD_DISPLAY_VAR.waitFlush();
         return tw;
     }
 
@@ -1746,26 +1919,34 @@ public:
 #endif
 
     const char* getModelName() const {
-        return display.modelName();
+        return AMK_CYD_DISPLAY_VAR.modelName();
     }
     const char* getPanelName() const {
-        return display.panelName();
+        return AMK_CYD_DISPLAY_VAR.panelName();
     }
     uint8_t getDiagonalTenths() const {
-        return display.diagonalTenths();
+        return AMK_CYD_DISPLAY_VAR.diagonalTenths();
     }
     bool isReadbackSupported() const {
+#ifndef AMK_CYD_DISPLAY_VAR
+#define AMK_CYD_DISPLAY_VAR display
+#endif
+
 #if defined(AMK_BACKEND_ESP32_S3)
         return true;
 #else
-        return display.readback() != CYDR_READBACK_NONE;
+        return AMK_CYD_DISPLAY_VAR.readback() != CYDR_READBACK_NONE;
 #endif
     }
     const char* getReadbackName() const {
+#ifndef AMK_CYD_DISPLAY_VAR
+#define AMK_CYD_DISPLAY_VAR display
+#endif
+
 #if defined(AMK_BACKEND_ESP32_S3)
         return "Internal Framebuffer";
 #else
-        return display.readbackName();
+        return AMK_CYD_DISPLAY_VAR.readbackName();
 #endif
     }
 
@@ -1798,7 +1979,7 @@ public:
                 }
                 _drawCharGFX(_cursorX, _cursorY, c, _textFg, _textBg, scale);
                 _cursorX += cw;
-                if (!isSprite()) display.waitFlush();
+                if (!isSprite()) AMK_CYD_DISPLAY_VAR.waitFlush();
             }
             return 1;
         }
@@ -1811,7 +1992,7 @@ public:
         }
         _drawChar(_cursorX, _cursorY, c, _textFg, _textBg, scale);
         _cursorX += cw;
-        if (!isSprite()) display.waitFlush();
+        if (!isSprite()) AMK_CYD_DISPLAY_VAR.waitFlush();
         return 1;
     }
 
@@ -2089,13 +2270,17 @@ public:
             pushToSprite((TFT_eSprite*)_tft, x, y);
             return;
         }
+#ifndef AMK_CYD_DISPLAY_VAR
+#define AMK_CYD_DISPLAY_VAR display
+#endif
+
 #if defined(AMK_BACKEND_ESP32_S3)
         if (_bpp == 16) {
-            display.pushImage(x, y, _w, _h, (const uint16_t*)_buffer);
+            AMK_CYD_DISPLAY_VAR.pushImage(x, y, _w, _h, (const uint16_t*)_buffer);
             return;
         }
 #endif
-        int16_t sw = display.width(), sh = display.height();
+        int16_t sw = AMK_CYD_DISPLAY_VAR.width(), sh = AMK_CYD_DISPLAY_VAR.height();
         if (x >= sw || y >= sh || x + _w <= 0 || y + _h <= 0) return;
 
         alignas(4) static uint16_t _sprLineBuf[800];
@@ -2114,7 +2299,7 @@ public:
             if (dstX + curW > sw) curW = sw - dstX;
             if (curW <= 0) continue;
 
-            display.waitFlush();
+            AMK_CYD_DISPLAY_VAR.waitFlush();
             if (_bpp == 16) {
                 const uint16_t* src = ((const uint16_t*)_buffer) + (row * _w) + srcStartX;
                 for (int32_t i = 0; i < curW; i++) _sprLineBuf[i] = __builtin_bswap16(src[i]);
@@ -2133,9 +2318,9 @@ public:
                     _sprLineBuf[i] = __builtin_bswap16(c);
                 }
             }
-            display.flushRegion(dstX, curY, dstX + curW - 1, curY, _sprLineBuf);
+            AMK_CYD_DISPLAY_VAR.flushRegion(dstX, curY, dstX + curW - 1, curY, _sprLineBuf);
         }
-        display.waitFlush();
+        AMK_CYD_DISPLAY_VAR.waitFlush();
     }
 
     void pushSprite(int32_t x, int32_t y, uint16_t transparent) {
@@ -2144,7 +2329,7 @@ public:
             pushToSprite((TFT_eSprite*)_tft, x, y, transparent);
             return;
         }
-        int16_t sw = display.width(), sh = display.height();
+        int16_t sw = AMK_CYD_DISPLAY_VAR.width(), sh = AMK_CYD_DISPLAY_VAR.height();
         if (x >= sw || y >= sh || x + _w <= 0 || y + _h <= 0) return;
 
         alignas(4) static uint16_t _transpLineBuf[800];
@@ -2168,19 +2353,19 @@ public:
                     _transpLineBuf[runLen++] = __builtin_bswap16(c);
                 } else {
                     if (runStart >= 0) {
-                        display.waitFlush();
-                        display.flushRegion(runStart, curY, runStart + runLen - 1, curY, _transpLineBuf);
+                        AMK_CYD_DISPLAY_VAR.waitFlush();
+                        AMK_CYD_DISPLAY_VAR.flushRegion(runStart, curY, runStart + runLen - 1, curY, _transpLineBuf);
                         runStart = -1;
                         runLen = 0;
                     }
                 }
             }
             if (runStart >= 0) {
-                display.waitFlush();
-                display.flushRegion(runStart, curY, runStart + runLen - 1, curY, _transpLineBuf);
+                AMK_CYD_DISPLAY_VAR.waitFlush();
+                AMK_CYD_DISPLAY_VAR.flushRegion(runStart, curY, runStart + runLen - 1, curY, _transpLineBuf);
             }
         }
-        display.waitFlush();
+        AMK_CYD_DISPLAY_VAR.waitFlush();
     }
 
     bool pushSprite(int32_t tx, int32_t ty, int32_t sx, int32_t sy, int32_t sw, int32_t sh) {
@@ -2192,7 +2377,7 @@ public:
         if (sw <= 0 || sh <= 0) return false;
 
         alignas(4) static uint16_t _subLineBuf[800];
-        int16_t dispW = display.width(), dispH = display.height();
+        int16_t dispW = AMK_CYD_DISPLAY_VAR.width(), dispH = AMK_CYD_DISPLAY_VAR.height();
 
         for (int32_t row = 0; row < sh; row++) {
             int32_t curDstY = ty + row;
@@ -2210,14 +2395,14 @@ public:
             if (dstX + curW > dispW) curW = dispW - dstX;
             if (curW <= 0) continue;
 
-            display.waitFlush();
+            AMK_CYD_DISPLAY_VAR.waitFlush();
             for (int32_t i = 0; i < curW; i++) {
                 uint16_t c = readPixel(sx + lineStartX + i, curSrcY);
                 _subLineBuf[i] = __builtin_bswap16(c);
             }
-            display.flushRegion(dstX, curDstY, dstX + curW - 1, curDstY, _subLineBuf);
+            AMK_CYD_DISPLAY_VAR.flushRegion(dstX, curDstY, dstX + curW - 1, curDstY, _subLineBuf);
         }
-        display.waitFlush();
+        AMK_CYD_DISPLAY_VAR.waitFlush();
         return true;
     }
 
@@ -2533,5 +2718,9 @@ class TFT_eSPI_Button {
 
 
 #include "AMK_Image_Decoder.h"
+
+#if !defined(AMK_BACKEND_ESP32_S3)
+#include "AMK_Terminal.h"
+#endif
 
 #endif // AMK_CYD_UNIVERSAL_TFT_H
