@@ -24,7 +24,48 @@
 #include <SD.h>
 #endif
 
-#if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(BOARD_ESP32_S3_RGB) || defined(BOARD_ESP32_S3_TOUCH_7) || defined(ARDUINO_WAVESHARE_ESP32_S3_TOUCH_LCD_7)
+// ─── AMK User Setup Auto-Discovery (v1.7.0) ──────────────────────────────────
+#if __has_include("AMK_User_Setup.h")
+  #include "AMK_User_Setup.h"
+  #define AMK_CUSTOM_SETUP_ACTIVE 1
+#elif __has_include(<AMK_User_Setup.h>)
+  #include <AMK_User_Setup.h>
+  #define AMK_CUSTOM_SETUP_ACTIVE 1
+#elif __has_include("AMK_TFT_User_Setup.h")
+  #include "AMK_TFT_User_Setup.h"
+  #define AMK_CUSTOM_SETUP_ACTIVE 1
+#elif __has_include(<AMK_TFT_User_Setup.h>)
+  #include <AMK_TFT_User_Setup.h>
+  #define AMK_CUSTOM_SETUP_ACTIVE 1
+#elif defined(AMK_CUSTOM_SETUP) || defined(AMK_CUSTOM_PINS)
+  #define AMK_CUSTOM_SETUP_ACTIVE 1
+#else
+  #define AMK_CUSTOM_SETUP_ACTIVE 0
+#endif
+
+// ─── Active LDR Pin Resolution ───────────────────────────────────────────────
+#if defined(TFT_LDR)
+  #define AMK_ACTIVE_LDR_PIN TFT_LDR
+#elif defined(AMK_PIN_LDR)
+  #define AMK_ACTIVE_LDR_PIN AMK_PIN_LDR
+#else
+  #define AMK_ACTIVE_LDR_PIN 34
+#endif
+
+// ─── Backend Target Selection ────────────────────────────────────────────────
+#if (AMK_CUSTOM_SETUP_ACTIVE == 1) && !defined(AMK_CUSTOM_USE_RGB)
+  // Force high-performance SPI backend for custom boards even on ESP32-S3
+  #define AMK_BACKEND_ESP32_CYD 1
+  #include "chipguy_CYD_resistive_display.h"
+  #include "chipguy_CYD_resistive_touch.h"
+
+  // ─── Type Aliases for Backward & Universal Compatibility ──────────────────────
+  using AMK_CYD_display = chipguy_CYD_resistive_display;
+  using AMK_CYD_touch   = chipguy_CYD_resistive_touch;
+  using AMK_display     = chipguy_CYD_resistive_display;
+  using AMK_touch       = chipguy_CYD_resistive_touch;
+
+#elif defined(CONFIG_IDF_TARGET_ESP32S3) || defined(BOARD_ESP32_S3_RGB) || defined(BOARD_ESP32_S3_TOUCH_7) || defined(ARDUINO_WAVESHARE_ESP32_S3_TOUCH_LCD_7)
   #define AMK_BACKEND_ESP32_S3 1
   #include "AMK_S3_RGB_Board.h"
   #include "chipguy_S3_RGB_display.h"
@@ -490,19 +531,26 @@ public:
 
     virtual bool isSprite() const { return false; }
 
-    // ── Auto-Detect Physical Presence of LDR Sensor on GPIO 34 ──
+    // ── Auto-Detect Physical Presence of LDR Sensor ──
     bool probeLdrPresence() {
-#if defined(AMK_BACKEND_ESP32_S3)
+#if (AMK_CUSTOM_SETUP_ACTIVE == 1)
+  #if defined(TFT_LDR) || defined(AMK_PIN_LDR)
+        pinMode(AMK_ACTIVE_LDR_PIN, INPUT);
+        return true;
+  #else
+        return false;
+  #endif
+#elif defined(AMK_BACKEND_ESP32_S3)
         return false;
 #else
         if (_isBattery) return false;
         const AMK_BoardProfile* prof = getBoardProfile();
         if (prof && prof->pinLdr < 0) return false;
 
-        pinMode(34, INPUT);
+        pinMode(AMK_ACTIVE_LDR_PIN, INPUT);
         uint32_t sum = 0;
         for (int i = 0; i < 8; i++) {
-            sum += analogRead(34);
+            sum += analogRead(AMK_ACTIVE_LDR_PIN);
             delayMicroseconds(200);
         }
         uint16_t avg = sum / 8;
@@ -948,7 +996,7 @@ public:
         if (millis() - _lastLdrSampleTime > 80) {
             _lastLdrSampleTime = millis();
             _ldrTotal = _ldrTotal - _ldrReadings[_ldrReadIndex];
-            _ldrReadings[_ldrReadIndex] = analogRead(34);
+            _ldrReadings[_ldrReadIndex] = analogRead(AMK_ACTIVE_LDR_PIN);
             _ldrTotal = _ldrTotal + _ldrReadings[_ldrReadIndex];
             _ldrReadIndex = (_ldrReadIndex + 1) % 10;
 

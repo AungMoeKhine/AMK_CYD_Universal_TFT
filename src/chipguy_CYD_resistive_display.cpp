@@ -1,4 +1,4 @@
-/*
+﻿/*
  * ILI9341 / ST7789 / ST7796 SPI display driver for the resistive-touch CYD
  * family (ESP32-2432S028; ESP32-32E 2.8", 3.2", 3.5", 4.0"; ESP32-024; ESP32-035;
  * ESP32-2432S032 / -C), and the capacitive ESP32-2432S024C, JC2432W328 and
@@ -17,6 +17,93 @@
 #include <Preferences.h>
 
 // ── Board pin assignments (fixed on every board) ───────────────────────────
+#if (AMK_CUSTOM_SETUP_ACTIVE == 1)
+  // ── Driver Selection from User_Setup ──
+  #if defined(ILI9341_DRIVER) || defined(AMK_CUSTOM_PANEL_ILI9341)
+    #define CYDR_CUSTOM_PANEL_OVERRIDE CYDR_PANEL_ILI9341
+  #elif defined(ST7789_DRIVER) || defined(AMK_CUSTOM_PANEL_ST7789)
+    #define CYDR_CUSTOM_PANEL_OVERRIDE CYDR_PANEL_ST7789
+  #elif defined(ST7796_DRIVER) || defined(AMK_CUSTOM_PANEL_ST7796)
+    #define CYDR_CUSTOM_PANEL_OVERRIDE CYDR_PANEL_ST7796
+  #endif
+
+  // ── SPI Pin Mapping (TFT_eSPI Standard Names take priority, AMK_PIN fallback) ──
+  #if defined(TFT_MOSI)
+    #define CYDR_TFT_MOSI TFT_MOSI
+  #elif defined(AMK_PIN_MOSI)
+    #define CYDR_TFT_MOSI AMK_PIN_MOSI
+  #else
+    #define CYDR_TFT_MOSI 11
+  #endif
+
+  #if defined(TFT_SCLK)
+    #define CYDR_TFT_SCLK TFT_SCLK
+  #elif defined(AMK_PIN_SCLK)
+    #define CYDR_TFT_SCLK AMK_PIN_SCLK
+  #else
+    #define CYDR_TFT_SCLK 12
+  #endif
+
+  #if defined(TFT_MISO)
+    #define CYDR_TFT_MISO TFT_MISO
+  #elif defined(AMK_PIN_MISO)
+    #define CYDR_TFT_MISO AMK_PIN_MISO
+  #else
+    #define CYDR_TFT_MISO 13
+  #endif
+
+  #if defined(TFT_CS)
+    #define CYDR_TFT_CS TFT_CS
+  #elif defined(AMK_PIN_CS)
+    #define CYDR_TFT_CS AMK_PIN_CS
+  #else
+    #define CYDR_TFT_CS 10
+  #endif
+
+  #if defined(TFT_DC)
+    #define CYDR_TFT_DC TFT_DC
+  #elif defined(AMK_PIN_DC)
+    #define CYDR_TFT_DC AMK_PIN_DC
+  #else
+    #define CYDR_TFT_DC 9
+  #endif
+
+  #if defined(TFT_RST)
+    #define CYDR_TFT_RST TFT_RST
+  #elif defined(AMK_PIN_RST)
+    #define CYDR_TFT_RST AMK_PIN_RST
+  #else
+    #define CYDR_TFT_RST 8
+  #endif
+
+  #if defined(TFT_BL)
+    #define CYDR_TFT_BL TFT_BL
+  #elif defined(AMK_PIN_BL)
+    #define CYDR_TFT_BL AMK_PIN_BL
+  #else
+    #define CYDR_TFT_BL 7
+  #endif
+
+  #if defined(SPI_FREQUENCY)
+    #define CYDR_CUSTOM_SPI_HZ SPI_FREQUENCY
+  #elif defined(AMK_SPI_FREQUENCY)
+    #define CYDR_CUSTOM_SPI_HZ AMK_SPI_FREQUENCY
+  #else
+    #define CYDR_CUSTOM_SPI_HZ 40000000
+  #endif
+
+  #if defined(TOUCH_CS)
+    #define CYDR_TOUCH_CS TOUCH_CS
+  #elif defined(AMK_PIN_TOUCH_CS)
+    #define CYDR_TOUCH_CS AMK_PIN_TOUCH_CS
+  #else
+    #define CYDR_TOUCH_CS 6
+  #endif
+
+  #define CYDR_TFT_BL_OWN    CYDR_TFT_BL
+  #define CYDR_TFT_BL_SHARED CYDR_TFT_BL
+
+#else
 #define CYDR_TFT_MOSI  13
 #define CYDR_TFT_SCLK  14
 #define CYDR_TFT_CS    15
@@ -25,13 +112,18 @@
 #define CYDR_TFT_BL_OWN    21   // backlight on own-touch boards, active HIGH
 #define CYDR_TFT_BL_SHARED 27   // backlight on shared-touch boards, active HIGH
 #define CYDR_TOUCH_CS  33   // held HIGH during detection so the XPT2046 can't drive GPIO12
+#endif
 // No reset GPIO: panel reset is tied to EN, so the init sequences start with a
 // software reset.
 
 // The panels take 40 MHz comfortably over the short CYD traces.  On the
 // shared-touch boards the touch device adds itself to this bus at a much slower clock;
 // the SPI master driver re-clocks between them.
-#define CYDR_TFT_SPI_HZ  40000000
+#if (AMK_CUSTOM_SETUP_ACTIVE == 1)
+  #define CYDR_TFT_SPI_HZ CYDR_CUSTOM_SPI_HZ
+#else
+  #define CYDR_TFT_SPI_HZ 40000000
+#endif
 
 // The ILI9341 and ST7796 panels are BGR with the same column order; the ST7789
 // panels are RGB with columns the other way.  setRotation() builds
@@ -125,11 +217,15 @@ static int _cydr_readWithPullup(int pin) {
 }
 
 cydr_board_t cydr_detectBoardPassive() {
+#if (AMK_CUSTOM_SETUP_ACTIVE == 1)
+    return CYDR_BOARD_CUSTOM;
+#else
     bool low21 = _cydr_readWithPullup(CYDR_TFT_BL_OWN) == 0;
     bool low27 = _cydr_readWithPullup(CYDR_TFT_BL_SHARED) == 0;
     if (low21 && !low27) return CYDR_BOARD_OWN_TOUCH;
     if (low27 && !low21) return CYDR_BOARD_SHARED_TOUCH;
     return CYDR_BOARD_UNKNOWN;
+#endif
 }
 
 // ── Red LED pin (GPIO4 vs GPIO22) ──────────────────────────────────────────
@@ -680,6 +776,16 @@ bool chipguy_CYD_resistive_display::begin(uint16_t rotation) {
     // CS is owned by the SPI peripheral (hardware CS) once the bus is up.
     gpio_set_direction((gpio_num_t)CYDR_TFT_DC, GPIO_MODE_OUTPUT);
 
+#if (AMK_CUSTOM_SETUP_ACTIVE == 1)
+  #if defined(CYDR_TFT_RST) && (CYDR_TFT_RST >= 0)
+    gpio_set_direction((gpio_num_t)CYDR_TFT_RST, GPIO_MODE_OUTPUT);
+    gpio_set_level((gpio_num_t)CYDR_TFT_RST, 0);
+    delay(20);
+    gpio_set_level((gpio_num_t)CYDR_TFT_RST, 1);
+    delay(100);
+  #endif
+#endif
+
     // Which board, then which panel.  Both must run before spi_bus_initialize()
     // takes the pins, and the board check before the backlight is driven.
     cydr_board_t hint = cydr_detectBoardPassive();
@@ -698,6 +804,13 @@ bool chipguy_CYD_resistive_display::begin(uint16_t rotation) {
     // inconclusive is it guessed -- backlight 27 where a capacitive chip
     // answers (on the 2432S024C GPIO21 is the CST820's INT, which spoils the
     // GPIO21 reading; bench, 2026-10-31), else from the panel.
+#if (AMK_CUSTOM_SETUP_ACTIVE == 1)
+    _board = CYDR_BOARD_CUSTOM;
+  #if defined(CYDR_CUSTOM_PANEL_OVERRIDE)
+    _panel = CYDR_CUSTOM_PANEL_OVERRIDE;
+    _panelGuessed = false;
+  #endif
+#else
     _board = hint;
     if (_board == CYDR_BOARD_UNKNOWN) {
         _board = cap != CYDR_TOUCH_XPT2046 || _panel == CYDR_PANEL_ST7796
@@ -707,6 +820,7 @@ bool chipguy_CYD_resistive_display::begin(uint16_t rotation) {
                       _board == CYDR_BOARD_SHARED_TOUCH ? CYDR_TFT_BL_SHARED : CYDR_TFT_BL_OWN,
                       cap != CYDR_TOUCH_XPT2046 ? "capacitive touch chip" : panelName());
     }
+#endif
     _cydr_activeBoard = _board;
     _cydr_activePanel = _panel;
     // Latch the red LED pin now, while ADC2 is still ours (before WiFi); it
@@ -807,8 +921,13 @@ bool chipguy_CYD_resistive_display::begin(uint16_t rotation) {
 
     if (_panel == CYDR_PANEL_ST7796) { _nativeW = 320; _nativeH = 480; }
     else                               { _nativeW = 240; _nativeH = 320; }
+#if (AMK_CUSTOM_SETUP_ACTIVE == 1)
+    _blPin = CYDR_TFT_BL;
+    _touchBus = CYDR_BOARD_SHARED_TOUCH;
+#else
     _blPin = _board == CYDR_BOARD_SHARED_TOUCH ? CYDR_TFT_BL_SHARED : CYDR_TFT_BL_OWN;
     _touchBus = _board;
+#endif
 
     // What detection chose, before any override.  The ST7789 panels have RGB
     // order and the other column direction; inversion is on for the 3.2" and

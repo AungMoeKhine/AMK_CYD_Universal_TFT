@@ -1,4 +1,4 @@
-﻿# AMK_CYD_Universal_TFT (v1.6.6) — Comprehensive Developer Guide & Technical Datasheet
+﻿# AMK_CYD_Universal_TFT (v1.7.0) — Comprehensive Developer Guide & Technical Datasheet
 **Author & Maintainer:** Aung Moe Khine (AMK)  
 **Target Hardware:** ESP32 Cheap Yellow Display (CYD) family (2.4" to 4.0") & ESP32-S3 Parallel RGB Displays (4.3" to 7.0")  
 **Frameworks:** Arduino IDE 1.8.x / 2.x, PlatformIO, Visual Studio Code  
@@ -47,6 +47,12 @@ The library automatically identifies and configures the following hardware archi
 | **Sunton ESP32-8048S Series** (043/050/070) | 4.3", 5.0", 7.0" | 800x480 | ST7262 (16-bit RGB) | GT911 Capacitive | Direct GPIO 2 (8-bit LEDC PWM) | SDA: 19, SCL: 20 |
 | **Guition JC8048W550C** | 5.0" | 800x480 | ST7262 (16-bit RGB) | GT911 Capacitive | Direct GPIO 2 (8-bit LEDC PWM) | SDA: 19, SCL: 20 |
 | **Elecrow CrowPanel Advance S3** | 2.8" / 5.0" | 240x320 / 800x480 | ST7789 / ST7262 | FT6336U / GT911 | Direct GPIO 38 PWM | SDA: 15, SCL: 16 |
+
+### C. Custom Hardware & DIY Setups (via AMK_User_Setup.h) [NEW in v1.7.0]
+
+| Target Architecture | Display Controllers | Bus Interface | Pin Customization Mechanism | Features Retained |
+|:---|:---:|:---:|:---|:---|
+| **ESP32 / ESP32-S3 / Custom Boards** | ILI9341, ST7789, ST7796 | High-Speed SPI (FSPI/HSPI) | Project-local or library `AMK_User_Setup.h` | Sprites, FreeFonts, Touch Calibration, LDR Auto-Dimming |
 
 ---
 

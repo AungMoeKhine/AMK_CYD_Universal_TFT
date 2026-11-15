@@ -1,7 +1,7 @@
 ﻿# AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.6.6-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.7.0-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD%20%2B%20S3%20RGB-2.4%22%20to%207.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
@@ -31,6 +31,14 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 ---
 
 ## 🚀 Key Features
+
+* 🛠️ **Universal Custom Hardware Setup via `AMK_User_Setup.h` [NEW in v1.7.0]**:
+  * Unlocks AMK_CYD_Universal_TFT for **any custom ESP32, ESP32-S3, or Custom PCB board with external SPI TFTs** (e.g. ESP32-S3 Dev Module + 2.8" Red SPI ILI9341)!
+  * **C++ `__has_include` Auto-Discovery**: Simply place `AMK_User_Setup.h` in your sketch directory (project-local) or inside the library folder.
+  * **100% `TFT_eSPI` Macro Compatible**: Simply uncomment your configuration lines (`#define ILI9341_DRIVER`, `#define TFT_MOSI 11`, `#define TFT_SCLK 12`, `#define TFT_CS 10`, etc.).
+  * **All AMK Power Features Remain Active**: Retains full fast 16-bit sprites, FreeFonts, touch calibration, and LDR moving-average auto-dimming (`#define TFT_LDR 4`).
+  * **Zero-Breaking-Change Guarantee**: Omitting `AMK_User_Setup.h` keeps 100% automatic zero-config CYD detection working identically for classic CYD boards.
+  * Includes ready-to-run example in `examples/Custom_Hardware_Setup/`.
 
 * 💻 **Ultra-Fast Hardware Text Terminal Companion (`AMK_Terminal.h`) [NEW in v1.6.6]**:
   * Lightweight alternative to heavy GUI frameworks for logging, console output, and telemetry dashboards!
@@ -724,6 +732,7 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 
 | Example | Description |
 |:---|:---|
+| **`Custom_Hardware_Setup`** | **Universal Custom Hardware Setup via `AMK_User_Setup.h` [NEW in v1.7.0]**. Complete working showcase demonstrating custom pin mapping, external SPI display bring-up (ESP32 / ESP32-S3), LDR auto-dimming on custom ADC pins, memory telemetry, and touch test pad. |
 | **`Terminal_Console_Demo`** | **Ultra-Fast Hardware Text Terminal Companion [NEW in v1.6.6]**. Demonstrates 5 KB static RAM text terminal (`AMK_Terminal.h`), panel hardware vertical scrolling (`VSCRDEF`/`VSCRSADD`), UTF-8 typography, ANSI terminal colors, battery ADC telemetry, beep feedback, and character-cell touch detection (`pollTouch`). |
 | **`MP3Player`** | **Universal SD Card MP3 Player with LVGL UI & Audio Amp Control [NEW in v1.6.6]**. Full-featured audio player utilizing `ESP8266Audio`, 8-bit DAC continuous DMA streaming, PAM8302 amplifier pop-free enable/disable sequencing (`tft.enableAudio()`), 1-line SD mounting (`tft.initSD()`), and interactive LVGL 9 touch UI. |
 | **`Universal_AutoConfig`** | **Master Auto-Configuration Template [NEW in v1.6.0]**. Demonstrates 1-line `tft.autoSetup(3)`, adaptive multi-point calibration (`tft.autoCalibrate()`), responsive hardware telemetry cards, 7-color verification bar, and live touch tracking with RGB LED sync. |
@@ -744,6 +753,15 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 ---
 
 ## 📝 Release History & Changelog
+
+### v1.7.0 (Universal Custom Hardware Setup Release)
+* 🛠️ **Universal Custom Hardware Setup (`AMK_User_Setup.h`)**:
+  * Unlocks AMK_CYD_Universal_TFT for **any custom ESP32, ESP32-S3, or Custom PCB board with external SPI TFTs** (e.g. ESP32-S3 Dev Module + 2.8" Red SPI ILI9341).
+  * **C++ `__has_include` Auto-Discovery**: Simply place `AMK_User_Setup.h` in your sketch directory (project-local) or inside the library folder.
+  * **100% `TFT_eSPI` Macro Compatible**: Simply uncomment your configuration lines (`#define ILI9341_DRIVER`, `#define TFT_MOSI 11`, `#define TFT_SCLK 12`, `#define TFT_CS 10`, etc.).
+  * **All AMK Power Features Remain Active**: Retains full fast 16-bit sprites, FreeFonts, touch calibration, and LDR moving-average auto-dimming (`#define TFT_LDR 4`).
+  * **Dual Setup Mode**: Custom setup when `AMK_User_Setup.h` is present; 100% automatic zero-config CYD detection when omitted.
+  * Added new **`Custom_Hardware_Setup`** example sketch.
 
 ### v1.6.6 (Hardware Text Terminal, PAM8302 Audio Amp, Battery Telemetry & SD Card Release)
 * 💻 **Ultra-Fast Hardware Text Terminal Companion (`AMK_Terminal.h`)**:

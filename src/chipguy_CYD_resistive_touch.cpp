@@ -1,4 +1,4 @@
-/*
+﻿/*
  * XPT2046 resistive touch driver for the resistive-touch CYD family.
  * See chipguy_CYD_resistive_touch.h for wiring and usage.
  */
@@ -34,8 +34,26 @@
 #define CYDR_TOUCH_MOSI  32
 #define CYDR_TOUCH_MISO  39
 // Both wirings:
+#if (AMK_CUSTOM_SETUP_ACTIVE == 1)
+  #if defined(TOUCH_CS)
+    #define CYDR_TOUCH_CS TOUCH_CS
+  #elif defined(AMK_PIN_TOUCH_CS)
+    #define CYDR_TOUCH_CS AMK_PIN_TOUCH_CS
+  #else
+    #define CYDR_TOUCH_CS 6
+  #endif
+
+  #if defined(TOUCH_IRQ)
+    #define CYDR_TOUCH_IRQ TOUCH_IRQ
+  #elif defined(AMK_PIN_TOUCH_IRQ)
+    #define CYDR_TOUCH_IRQ AMK_PIN_TOUCH_IRQ
+  #else
+    #define CYDR_TOUCH_IRQ 5
+  #endif
+#else
 #define CYDR_TOUCH_CS    33
 #define CYDR_TOUCH_IRQ   36   // active LOW while the panel is being touched
+#endif
 
 // Shared-touch boards: the XPT2046 is a second device on the display's bus.  Its max
 // SPI clock is ~2.5 MHz; stay comfortably under it.  The SPI master driver

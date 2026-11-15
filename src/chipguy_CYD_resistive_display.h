@@ -59,6 +59,27 @@
 #include <Arduino.h>
 #include <driver/spi_master.h>
 
+// ─── AMK User Setup Auto-Discovery (v1.7.0) ──────────────────────────────────
+#if !defined(AMK_CUSTOM_SETUP_ACTIVE)
+  #if __has_include("AMK_User_Setup.h")
+    #include "AMK_User_Setup.h"
+    #define AMK_CUSTOM_SETUP_ACTIVE 1
+  #elif __has_include(<AMK_User_Setup.h>)
+    #include <AMK_User_Setup.h>
+    #define AMK_CUSTOM_SETUP_ACTIVE 1
+  #elif __has_include("AMK_TFT_User_Setup.h")
+    #include "AMK_TFT_User_Setup.h"
+    #define AMK_CUSTOM_SETUP_ACTIVE 1
+  #elif __has_include(<AMK_TFT_User_Setup.h>)
+    #include <AMK_TFT_User_Setup.h>
+    #define AMK_CUSTOM_SETUP_ACTIVE 1
+  #elif defined(AMK_CUSTOM_SETUP) || defined(AMK_CUSTOM_PINS)
+    #define AMK_CUSTOM_SETUP_ACTIVE 1
+  #else
+    #define AMK_CUSTOM_SETUP_ACTIVE 0
+  #endif
+#endif
+
 // â”€â”€ Board-option guard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Every board this library drives has 4 MB of flash and no PSRAM.  The Arduino
 // IDE does not persist board options reliably, and "ESP32 Dev Module" offers
@@ -71,6 +92,7 @@
 // value.  An FQBN that omits an option is left alone: it gets the board's
 // default, which is right for both.  Option matching is exact: the name=value
 // must be followed by a comma or the end of the string.
+#if !defined(AMK_CUSTOM_SETUP_ACTIVE) || (AMK_CUSTOM_SETUP_ACTIVE == 0)
 #if !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(BOARD_ESP32_S3_RGB) && !defined(BOARD_ESP32_S3_TOUCH_7) && !defined(ARDUINO_WAVESHARE_ESP32_S3_TOUCH_LCD_7)
 #if defined(CONFIG_IDF_TARGET_ESP32)
 #if defined(ARDUINO_FQBN) && (__cplusplus >= 201402L)
@@ -93,6 +115,7 @@ static_assert(!cydr_fqbnHasOption(ARDUINO_FQBN, "PSRAM=enabled"),
 #endif
 #ifdef BOARD_HAS_PSRAM
 #error "BOARD_HAS_PSRAM is defined: classic ESP32 CYD boards have no PSRAM. Select Tools > PSRAM > Disabled."
+#endif
 #endif
 #endif
 #endif
@@ -137,6 +160,7 @@ enum cydr_board_t : uint8_t {
     CYDR_BOARD_SHARED_TOUCH, // backlight 27, XPT2046 on the display bus:
                                //   ESP32-32E 3.2", 3.5", 4.0", ESP32-024, ESP32-035,
                                //   ESP32-2432S032 / -C
+    CYDR_BOARD_CUSTOM,       // Custom hardware setup (AMK_User_Setup.h)
 };
 
 // The board as told by the backlight pins' pull-downs, without driving
