@@ -1,7 +1,7 @@
 ﻿# AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.7.0-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.8.0-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD%20%2B%20S3%20RGB-2.4%22%20to%207.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
@@ -31,6 +31,13 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 ---
 
 ## 🚀 Key Features
+
+* ⚡ **80 MHz SPI Stress Testing & Direct Unbuffered Raster Animation [NEW in v1.8.0]**:
+  * **Certified 80 MHz Bus Testing (`tft.stressTest()`)**: Stress tests SPI transmission with random pixel noise, serial UART traffic, and LED PWM spikes, saving certified speed results to NVS flash (`tft.saveSpeedTest()`).
+  * **Direct Unbuffered Raster Animation**: Overcomes classic ESP32 SRAM limitations (no full 150 KB framebuffer needed) by streaming 16-row DMA bounce buffers (7.5 KB - 10 KB) directly to the panel.
+  * **Tear-Free Beam Chasing**: Synchronizes writes with the panel's internal scanline via command `0x45`, pushing pixels directly behind the refresh beam for 100% tear-free motion.
+  * **Panel Refresh Rate Tuning (`tft.applyRefreshChoice()`, `tft.setRefreshStep()`)**: Allows slowing panel oscillators so even 40 MHz SPI boards achieve smooth ~30 FPS full-screen animations.
+  * **Ready-to-run Examples**: Includes `Raster_AMK_StressTest`, `RasterBouncingBalls`, and `RasterFireRainSnow` dual-core animated showcases.
 
 * 🛠️ **Universal Custom Hardware Setup via `AMK_User_Setup.h` [NEW in v1.7.0]**:
   * Unlocks AMK_CYD_Universal_TFT for **any custom ESP32, ESP32-S3, or Custom PCB board with external SPI TFTs** (e.g. ESP32-S3 Dev Module + 2.8" Red SPI ILI9341)!
@@ -753,6 +760,22 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 ---
 
 ## 📝 Release History & Changelog
+
+### v1.8.0 (80 MHz SPI Stress Testing, Unbuffered Direct Raster Animation & Scanline Sync Release)
+* ⚡ **80 MHz SPI Stress Testing & Dynamic Speed Calibration (`tft.stressTest()`)**:
+  * Certified 80 MHz hardware stress testing engine with random pixel noise, serial UART activity, and LED PWM spikes.
+  * Automatic persistent speed record storage in NVS flash (`tft.saveSpeedTest()`, `tft.loadSpeedTest()`).
+  * Dynamic SPI clock switching at runtime (`tft.changeSpiClock(80000000)` / `tft.setSpiClock()`).
+* 🚀 **Direct Unbuffered Raster Animation Engine**:
+  * True 0-RAM full-framebuffer streaming using dual 16-row DMA bounce buffers (7.5 KB - 10 KB).
+  * Eliminates the traditional 150 KB ESP32 SRAM limitation for high-speed graphics.
+* 🎯 **Hardware Beam Chasing & Scanline Synchronization**:
+  * Real-time panel scanline tracking via command `0x45` (`readScanline`).
+  * Tear-free rendering by pushing graphics directly behind the physical display refresh beam.
+* ⏱️ **Panel Oscillator Refresh Rate Tuning (`tft.applyRefreshChoice()`, `tft.setRefreshStep()`)**:
+  * Fine-grained control over panel timing (ST7789, ST7796, ILI9341) for flicker-free high-FPS animation.
+* 📦 **New High-FPS Animation Examples**:
+  * Added `Raster_AMK_StressTest`, `RasterBouncingBalls`, and `RasterFireRainSnow` dual-core animated showcases.
 
 ### v1.7.0 (Universal Custom Hardware Setup Release)
 * 🛠️ **Universal Custom Hardware Setup (`AMK_User_Setup.h`)**:

@@ -313,3 +313,22 @@ TFT_ORANGE	LITERAL1
 TFT_GREENYELLOW	LITERAL1
 TFT_PINK	LITERAL1
 TFT_TRANSPARENT	LITERAL1
+
+# Raster & 80MHz Stress Test (v1.8.0)
+stressTest	KEYWORD2
+changeSpiClock	KEYWORD2
+applyRefreshChoice	KEYWORD2
+setRefreshStep	KEYWORD2
+refreshStepCount	KEYWORD2
+refreshStepRatio	KEYWORD2
+readCommand	KEYWORD2
+loadSpeedTest	KEYWORD2
+saveSpeedTest	KEYWORD2
+loadRefreshChoice	KEYWORD2
+saveRefreshChoice	KEYWORD2
+clearRefreshChoice	KEYWORD2
+cydr_speed_test_t	KEYWORD1
+cydr_refresh_choice_t	KEYWORD1
+CYDR_SPEED_PASSED	LITERAL1
+CYDR_SPEED_FAILED	LITERAL1
+CYDR_SPEED_UNTESTED	LITERAL1

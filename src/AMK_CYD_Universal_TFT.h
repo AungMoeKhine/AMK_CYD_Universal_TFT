@@ -162,6 +162,10 @@
 #define TFT_ORANGE       0xFD20
 #define TFT_GREENYELLOW  0xAFE5
 #define TFT_PINK         0xFC18
+#define TFT_GOLD         0xFEA0
+#define TFT_SILVER       0xC618
+#define TFT_SKYBLUE      0x867D
+#define TFT_VIOLET       0x915C
 #endif
 
 #ifndef TFT_TRANSPARENT
@@ -1173,6 +1177,135 @@ public:
     int16_t nativeWidth() const { return AMK_CYD_DISPLAY_VAR.nativeWidth(); }
     int16_t nativeHeight() const { return AMK_CYD_DISPLAY_VAR.nativeHeight(); }
 
+    // ═════════════════════════════════════════════════════════════════════════
+    //  Raster Graphics, Panel Refresh & 80 MHz Stress Test Wrappers (v1.8.0)
+    // ═════════════════════════════════════════════════════════════════════════
+    int stressTest(uint32_t hz = 80000000, uint32_t ms = 20000,
+                   void (*progress)(uint32_t elapsedMs, uint32_t totalMs) = nullptr,
+                   int *windows = nullptr) {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        return AMK_CYD_DISPLAY_VAR.stressTest(hz, ms, progress, windows);
+#else
+        (void)hz; (void)ms; (void)progress; (void)windows;
+        return -1;
+#endif
+    }
+
+    void changeSpiClock(uint32_t hz) {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        AMK_CYD_DISPLAY_VAR.changeSpiClock(hz);
+#else
+        (void)hz;
+#endif
+    }
+
+    bool applyRefreshChoice() {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        return AMK_CYD_DISPLAY_VAR.applyRefreshChoice();
+#else
+        return false;
+#endif
+    }
+
+    bool setRefreshStep(int step, float stockHz) {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        return AMK_CYD_DISPLAY_VAR.setRefreshStep(step, stockHz);
+#else
+        (void)step; (void)stockHz;
+        return false;
+#endif
+    }
+
+    int refreshStep() const {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        return AMK_CYD_DISPLAY_VAR.refreshStep();
+#else
+        return 0;
+#endif
+    }
+
+    int refreshStepCount() const {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        return AMK_CYD_DISPLAY_VAR.refreshStepCount();
+#else
+        return 0;
+#endif
+    }
+
+    float refreshStepRatio(int step) const {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        return AMK_CYD_DISPLAY_VAR.refreshStepRatio(step);
+#else
+        (void)step;
+        return 1.0f;
+#endif
+    }
+
+    bool readCommand(uint8_t cmd, uint8_t *buf, size_t n, uint32_t hz = 4000000) {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        return AMK_CYD_DISPLAY_VAR.readCommand(cmd, buf, n, hz);
+#else
+        (void)cmd; (void)buf; (void)n; (void)hz;
+        return false;
+#endif
+    }
+
+    void setWindow(int x0, int y0, int x1, int y1) {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        AMK_CYD_DISPLAY_VAR.setWindow(x0, y0, x1, y1);
+#else
+        (void)x0; (void)y0; (void)x1; (void)y1;
+#endif
+    }
+
+    spi_device_handle_t spiDevice() const {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        return AMK_CYD_DISPLAY_VAR.spiDevice();
+#else
+        return nullptr;
+#endif
+    }
+
+    bool loadSpeedTest(cydr_speed_test_t &r) {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        return cydr_loadSpeedTest(r);
+#else
+        (void)r;
+        return false;
+#endif
+    }
+
+    void saveSpeedTest(const cydr_speed_test_t &r) {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        cydr_saveSpeedTest(r);
+#else
+        (void)r;
+#endif
+    }
+
+    bool loadRefreshChoice(cydr_refresh_choice_t &c) {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        return cydr_loadRefreshChoice(c);
+#else
+        (void)c;
+        return false;
+#endif
+    }
+
+    void saveRefreshChoice(const cydr_refresh_choice_t &c) {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        cydr_saveRefreshChoice(c);
+#else
+        (void)c;
+#endif
+    }
+
+    void clearRefreshChoice() {
+#if !defined(AMK_BACKEND_ESP32_S3)
+        cydr_clearRefreshChoice();
+#endif
+    }
+
     void printHardwareReport() {
         Serial.println("\n=================================================================");
         Serial.println("         AMK_CYD_Universal_TFT Universal Hardware Report         ");
@@ -2054,6 +2187,10 @@ public:
         return n;
     }
 };
+
+// ─── AMK TFT Type Aliases (v1.8.0) ──────────────────────────────────────────
+using AMK_CYD_Universal_TFT = TFT_eSPI;
+using AMK_TFT                = TFT_eSPI;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  TFT_eSprite  -  Full off-screen canvas / frame buffer (16-bit, 8-bit, 4-bit)
