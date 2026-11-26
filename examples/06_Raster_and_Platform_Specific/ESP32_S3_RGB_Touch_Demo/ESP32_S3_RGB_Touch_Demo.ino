@@ -11,6 +11,7 @@
 //   - USB CDC On Boot: "Enabled"
 // ═══════════════════════════════════════════════════════════════════════════════
 
+#define AMK_USE_RGB_PANEL
 #include <AMK_CYD_Universal_TFT.h>
 
 // Global hardware instances (default board controller handles CH422G expander)
