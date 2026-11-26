@@ -181,6 +181,7 @@ static_assert(!cydr_fqbnHasOption(ARDUINO_FQBN, "PSRAM=enabled"),
 #error "BOARD_HAS_PSRAM is defined: this board has no PSRAM. Select Tools > PSRAM > Disabled."
 #endif
 #endif
+#endif
 
 // SPI host the display runs on.  On the shared-touch boards the touch driver adds the
 // XPT2046 to this same host as a second device.
@@ -215,7 +216,6 @@ enum cydr_panel_t : uint8_t {
 // How the board is wired, which decides the backlight pin and the touch bus.
 // Independent of the panel: the 3.2" has the shared wiring with a 240x320
 // ST7789.  The panel alone decides the geometry.
-#endif
 #endif
 
 enum cydr_board_t : uint8_t {
