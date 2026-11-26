@@ -1,0 +1,85 @@
+name: Compile Examples
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (${{ matrix.esp32_core }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        esp32_core:
+          - "2.0.17"
+          - "latest"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Install ESP32 Core (${{ matrix.esp32_core }})
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          if [ "${{ matrix.esp32_core }}" = "latest" ]; then
+            arduino-cli core install esp32:esp32
+          else
+            arduino-cli core install esp32:esp32@${{ matrix.esp32_core }}
+          fi
+
+      - name: Install Library Dependencies
+        run: |
+          arduino-cli lib update-index
+          arduino-cli lib install "lvgl" "JPEGDecoder" "PNGdec" "ESP8266Audio"
+
+      - name: Link AMK_CYD_Universal_TFT into Arduino libraries
+        run: |
+          mkdir -p "$HOME/Arduino/libraries"
+          ln -s "$GITHUB_WORKSPACE" "$HOME/Arduino/libraries/AMK_CYD_Universal_TFT"
+
+      - name: Compile ESP32 CYD Examples
+        run: |
+          FQBN="esp32:esp32:esp32:FlashSize=4M,PartitionScheme=huge_app"
+          for sketch in \
+            examples/01_Basics/BoardDetect \
+            examples/01_Basics/Custom_Hardware_Setup \
+            examples/01_Basics/QuickStart \
+            examples/01_Basics/Universal_AutoConfig \
+            examples/02_Touch_and_Calibration/BasicTouchDemo \
+            examples/02_Touch_and_Calibration/ButtonDemo \
+            examples/02_Touch_and_Calibration/TouchCalibration \
+            examples/03_Graphics_and_Fonts/FreeFontDemo \
+            examples/03_Graphics_and_Fonts/GradientDemo \
+            examples/03_Graphics_and_Fonts/ImageDecoderDemo \
+            examples/03_Graphics_and_Fonts/SpriteDemo \
+            examples/04_Peripherals_and_Terminal/MP3Player \
+            examples/04_Peripherals_and_Terminal/Terminal_Console_Demo \
+            examples/05_LVGL_and_Visual_GUI/LVGL_QuickStart \
+            examples/05_LVGL_and_Visual_GUI/VisualGUI_QuickStart \
+            examples/06_Raster_and_Platform_Specific/Raster_AMK_StressTest \
+            examples/06_Raster_and_Platform_Specific/RasterBouncingBalls \
+            examples/06_Raster_and_Platform_Specific/RasterFireRainSnow
+          do
+            echo "=== Compiling $sketch ==="
+            arduino-cli compile --fqbn "$FQBN" "$sketch"
+          done
+
+      - name: Compile ESP32-S3 Examples
+        run: |
+          FQBN_S3="esp32:esp32:esp32s3:PSRAM=opi,FlashSize=16M,PartitionScheme=huge_app"
+          for sketch in \
+            examples/01_Basics/QuickStart \
+            examples/06_Raster_and_Platform_Specific/ESP32_S3_RGB_Touch_Demo
+          do
+            echo "=== Compiling $sketch (ESP32-S3) ==="
+            arduino-cli compile --fqbn "$FQBN_S3" "$sketch"
+          done
