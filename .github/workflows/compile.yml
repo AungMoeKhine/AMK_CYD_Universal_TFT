@@ -15,7 +15,6 @@ jobs:
       fail-fast: false
       matrix:
         esp32_core:
-          - "2.0.17"
           - "latest"
 
     steps:
