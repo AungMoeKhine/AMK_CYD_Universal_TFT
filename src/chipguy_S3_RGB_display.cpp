@@ -1189,8 +1189,12 @@ bool chipguy_S3_RGB_display::begin(uint32_t pclk_hz, uint16_t rotation) {
 #endif
         .num_fbs = 0,
         .bounce_buffer_size_px = _bounce_buffer_size_px,  // 20 scanlines in SRAM
+#if defined(ESP_IDF_VERSION) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0))
+        .dma_burst_size = 64,
+#else
         .sram_trans_align = 8,
         .psram_trans_align = 64,
+#endif
         .hsync_gpio_num = PIN_LCD_HSYNC,
         .vsync_gpio_num = PIN_LCD_VSYNC,
         .de_gpio_num = PIN_LCD_DE,
