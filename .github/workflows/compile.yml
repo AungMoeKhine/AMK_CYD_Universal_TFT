@@ -45,6 +45,7 @@ jobs:
         run: |
           mkdir -p "$HOME/Arduino/libraries"
           ln -s "$GITHUB_WORKSPACE" "$HOME/Arduino/libraries/AMK_CYD_Universal_TFT"
+          cp "$GITHUB_WORKSPACE/src/AMK_lv_conf_default.h" "$HOME/Arduino/libraries/lv_conf.h"
 
       - name: Compile ESP32 CYD Examples
         run: |

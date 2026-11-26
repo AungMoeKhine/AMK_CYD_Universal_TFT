@@ -12,7 +12,9 @@
 #include <driver/gpio.h>
 #include <esp_heap_caps.h>
 #include <esp_timer.h>
+#if __has_include(<esp32-hal-periman.h>)
 #include <esp32-hal-periman.h>
+#endif
 #include <Wire.h>
 #include <Preferences.h>
 
@@ -311,7 +313,9 @@ static uint32_t _cydr_gpio4PulldownMillivolts() {
     uint32_t mv = 0;
     for (int i = 0; i < 8; i++) mv += analogReadMilliVolts(4);
     gpio_set_pull_mode(GPIO_NUM_4, GPIO_FLOATING);
+#if __has_include(<esp32-hal-periman.h>)
     perimanClearPinBus(4);                         // release ADC2 before WiFi wants it
+#endif
     return mv / 8;
 }
 
