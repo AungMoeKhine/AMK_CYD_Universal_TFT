@@ -1181,7 +1181,12 @@ bool chipguy_S3_RGB_display::begin(uint32_t pclk_hz, uint16_t rotation) {
             },
         },
         .data_width = 16,
+#if defined(ESP_IDF_VERSION) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0))
+        .in_color_format = LCD_COLOR_FMT_RGB565,
+        .out_color_format = LCD_COLOR_FMT_RGB565,
+#else
         .bits_per_pixel = 16,
+#endif
         .num_fbs = 0,
         .bounce_buffer_size_px = _bounce_buffer_size_px,  // 20 scanlines in SRAM
         .sram_trans_align = 8,
@@ -1203,22 +1208,22 @@ bool chipguy_S3_RGB_display::begin(uint32_t pclk_hz, uint16_t rotation) {
     };
 
     // Set data GPIO pins individually (RGB565: B=bits 0-4, G=bits 5-10, R=bits 11-15)
-    panel_config.data_gpio_nums[0] = PIN_LCD_B0;
-    panel_config.data_gpio_nums[1] = PIN_LCD_B1;
-    panel_config.data_gpio_nums[2] = PIN_LCD_B2;
-    panel_config.data_gpio_nums[3] = PIN_LCD_B3;
-    panel_config.data_gpio_nums[4] = PIN_LCD_B4;
-    panel_config.data_gpio_nums[5] = PIN_LCD_G0;
-    panel_config.data_gpio_nums[6] = PIN_LCD_G1;
-    panel_config.data_gpio_nums[7] = PIN_LCD_G2;
-    panel_config.data_gpio_nums[8] = PIN_LCD_G3;
-    panel_config.data_gpio_nums[9] = PIN_LCD_G4;
-    panel_config.data_gpio_nums[10] = PIN_LCD_G5;
-    panel_config.data_gpio_nums[11] = PIN_LCD_R0;
-    panel_config.data_gpio_nums[12] = PIN_LCD_R1;
-    panel_config.data_gpio_nums[13] = PIN_LCD_R2;
-    panel_config.data_gpio_nums[14] = PIN_LCD_R3;
-    panel_config.data_gpio_nums[15] = PIN_LCD_R4;
+    panel_config.data_gpio_nums[0] = (gpio_num_t)PIN_LCD_B0;
+    panel_config.data_gpio_nums[1] = (gpio_num_t)PIN_LCD_B1;
+    panel_config.data_gpio_nums[2] = (gpio_num_t)PIN_LCD_B2;
+    panel_config.data_gpio_nums[3] = (gpio_num_t)PIN_LCD_B3;
+    panel_config.data_gpio_nums[4] = (gpio_num_t)PIN_LCD_B4;
+    panel_config.data_gpio_nums[5] = (gpio_num_t)PIN_LCD_G0;
+    panel_config.data_gpio_nums[6] = (gpio_num_t)PIN_LCD_G1;
+    panel_config.data_gpio_nums[7] = (gpio_num_t)PIN_LCD_G2;
+    panel_config.data_gpio_nums[8] = (gpio_num_t)PIN_LCD_G3;
+    panel_config.data_gpio_nums[9] = (gpio_num_t)PIN_LCD_G4;
+    panel_config.data_gpio_nums[10] = (gpio_num_t)PIN_LCD_G5;
+    panel_config.data_gpio_nums[11] = (gpio_num_t)PIN_LCD_R0;
+    panel_config.data_gpio_nums[12] = (gpio_num_t)PIN_LCD_R1;
+    panel_config.data_gpio_nums[13] = (gpio_num_t)PIN_LCD_R2;
+    panel_config.data_gpio_nums[14] = (gpio_num_t)PIN_LCD_R3;
+    panel_config.data_gpio_nums[15] = (gpio_num_t)PIN_LCD_R4;
 
     esp_err_t ret = esp_lcd_new_rgb_panel(&panel_config, &_panel_handle);
     if (ret != ESP_OK) {
