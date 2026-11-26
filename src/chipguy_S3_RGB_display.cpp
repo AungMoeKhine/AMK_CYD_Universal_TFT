@@ -1195,12 +1195,12 @@ bool chipguy_S3_RGB_display::begin(uint32_t pclk_hz, uint16_t rotation) {
         .sram_trans_align = 8,
         .psram_trans_align = 64,
 #endif
-        .hsync_gpio_num = PIN_LCD_HSYNC,
-        .vsync_gpio_num = PIN_LCD_VSYNC,
-        .de_gpio_num = PIN_LCD_DE,
-        .pclk_gpio_num = PIN_LCD_PCLK,
-        .disp_gpio_num = -1,
-        .data_gpio_nums = {0},
+        .hsync_gpio_num = (gpio_num_t)PIN_LCD_HSYNC,
+        .vsync_gpio_num = (gpio_num_t)PIN_LCD_VSYNC,
+        .de_gpio_num = (gpio_num_t)PIN_LCD_DE,
+        .pclk_gpio_num = (gpio_num_t)PIN_LCD_PCLK,
+        .disp_gpio_num = GPIO_NUM_NC,
+        .data_gpio_nums = {(gpio_num_t)0},
         .flags = {
             .disp_active_low = 0,
             .refresh_on_demand = false,
