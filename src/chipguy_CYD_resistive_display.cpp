@@ -29,17 +29,56 @@
 #define CYDR_TOUCH_CS   1   // held HIGH during detection so the XPT2046 can't drive MISO
 #define CYDR_TF_CS     10   // the card, likewise (10k pull-up on the board too)
 #elif CYDR_CHIP_S3
-// ES3C28P: the panel alone on FSPI's IO_MUX pins (so 80 MHz needs no GPIO
-// matrix).  Touch is I2C and the card is SDMMC: nothing else on this bus.
-#define CYDR_TFT_MOSI  11
-#define CYDR_TFT_SCLK  12
-#define CYDR_TFT_CS    10
-#define CYDR_TFT_DC    46
-#define CYDR_TFT_MISO  13   // panel SDO
-#define CYDR_TFT_BL_OWN    45   // the one backlight pin (BSS138 low-side switch,
-#define CYDR_TFT_BL_SHARED 45   //   10k pull-down), active HIGH
+// Dynamic pin routing for ESP32-S3 boards (ES3C28P vs VIEWE UEDX24320028)
+static int8_t _cydr_s3_mosi = 11;
+static int8_t _cydr_s3_sclk = 12;
+static int8_t _cydr_s3_cs   = 10;
+static int8_t _cydr_s3_dc   = 46;
+static int8_t _cydr_s3_miso = 13;
+static int8_t _cydr_s3_bl   = 45;
+static int8_t _cydr_s3_rst  = -1;
+
+#define CYDR_TFT_MOSI      _cydr_s3_mosi
+#define CYDR_TFT_SCLK      _cydr_s3_sclk
+#define CYDR_TFT_CS        _cydr_s3_cs
+#define CYDR_TFT_DC        _cydr_s3_dc
+#define CYDR_TFT_MISO      _cydr_s3_miso
+#define CYDR_TFT_BL_OWN    _cydr_s3_bl
+#define CYDR_TFT_BL_SHARED _cydr_s3_bl
+#define CYDR_TFT_RST       _cydr_s3_rst
 #else
 #if (AMK_CUSTOM_SETUP_ACTIVE == 1)
+  // ── Auto-preset for VIEWE UEDX24320028E 2.8" ESP32-S3 ──
+  #if defined(BOARD_VIEWE_UEDX24320028E) || defined(BOARD_VIEWE_28) || defined(AMK_BOARD_VIEWE_28)
+    #ifndef ST7789_DRIVER
+      #define ST7789_DRIVER 1
+    #endif
+    #ifndef TFT_MOSI
+      #define TFT_MOSI 45
+    #endif
+    #ifndef TFT_SCLK
+      #define TFT_SCLK 40
+    #endif
+    #ifndef TFT_CS
+      #define TFT_CS 42
+    #endif
+    #ifndef TFT_DC
+      #define TFT_DC 41
+    #endif
+    #ifndef TFT_RST
+      #define TFT_RST 39
+    #endif
+    #ifndef TFT_BL
+      #define TFT_BL 13
+    #endif
+    #ifndef TFT_MISO
+      #define TFT_MISO -1
+    #endif
+    #ifndef SPI_FREQUENCY
+      #define SPI_FREQUENCY 40000000
+    #endif
+  #endif
+
   // ── Driver Selection from User_Setup ──
   #if defined(ILI9341_DRIVER) || defined(AMK_CUSTOM_PANEL_ILI9341)
     #define CYDR_CUSTOM_PANEL_OVERRIDE CYDR_PANEL_ILI9341
@@ -224,7 +263,7 @@ void chipguy_CYD_resistive_display::_data8(uint8_t val) {
 // 2026-10-13: the pulled-down pin reads 0.13 V with the internal pull-up on
 // (0.77 V on the ESP32-024, 2026-10-18 — a weaker pull-down, still a clear LOW).
 
-static int _cydr_readWithPullup(int pin) {
+int _cydr_readWithPullup(int pin) {
     gpio_reset_pin((gpio_num_t)pin);
     gpio_set_direction((gpio_num_t)pin, GPIO_MODE_INPUT);
     gpio_set_pull_mode((gpio_num_t)pin, GPIO_PULLUP_ONLY);
@@ -576,6 +615,7 @@ const char *chipguy_CYD_resistive_display::modelName(cydr_model_t m, uint8_t siz
         case CYDR_MODEL_NM_CYD_C5: return "NM-CYD-C5";
         case CYDR_MODEL_ES3C28P:   return "ES3C28P 2.8\" S3";
         case CYDR_MODEL_ES3N28P:   return "ES3N28P 2.8\" S3";
+        case CYDR_MODEL_VIEWE_28:  return "VIEWE UEDX24320028 2.8\"";
         default:                   return "unknown";
     }
 }
@@ -616,6 +656,7 @@ static _cydr_modelFacts _cydr_factsOf(cydr_model_t m) {
         // backlight pin, 45.
         case CYDR_MODEL_ES3C28P:    return {CYDR_BOARD_SHARED_TOUCH,-1, CYDR_TOUCH_FT6336,  28, CYDR_PWRKEY_NONE};
         case CYDR_MODEL_ES3N28P:    return {CYDR_BOARD_SHARED_TOUCH,-1, CYDR_TOUCH_NONE,    28, CYDR_PWRKEY_NONE};
+        case CYDR_MODEL_VIEWE_28:   return {CYDR_BOARD_SHARED_TOUCH,-1, CYDR_TOUCH_CHSC6540, 28, CYDR_PWRKEY_NONE};
         default:                   return {CYDR_BOARD_UNKNOWN,     -1, CYDR_TOUCH_XPT2046, 0,  CYDR_PWRKEY_UNKNOWN};
     }
 }
@@ -877,6 +918,47 @@ void chipguy_CYD_resistive_display::_waitPixelDone() {
 // ── Public API ─────────────────────────────────────────────────────────────
 
 bool chipguy_CYD_resistive_display::begin(uint16_t rotation) {
+#if (AMK_CUSTOM_SETUP_ACTIVE == 1)
+    // Custom hardware setup handled below
+#elif CYDR_CHIP_S3
+    // ── ESP32-S3 Auto-Probing: Detect ES3C28P vs VIEWE UEDX24320028 ──
+    uint8_t capAddr = 0;
+    bool s3Codec = false;
+    cydr_touch_chip_t cap = _cydr_s3ProbeI2c(&capAddr, &s3Codec);
+
+    if (cap == CYDR_TOUCH_CHSC6540 || (_cydr_readWithPullup(13) == 0 && _cydr_readWithPullup(45) != 0)) {
+        // VIEWE UEDX24320028 2.8" SPI IPS Display
+        _cydr_s3_mosi = 45;
+        _cydr_s3_sclk = 40;
+        _cydr_s3_cs   = 42;
+        _cydr_s3_dc   = 41;
+        _cydr_s3_miso = -1;
+        _cydr_s3_bl   = 13;
+        _cydr_s3_rst  = 39;
+        _panel        = CYDR_PANEL_ST7789;
+        _panelGuessed = false;
+        _model        = CYDR_MODEL_VIEWE_28;
+    } else {
+        // ES3C28P / ES3N28P default pinout
+        _cydr_s3_mosi = 11;
+        _cydr_s3_sclk = 12;
+        _cydr_s3_cs   = 10;
+        _cydr_s3_dc   = 46;
+        _cydr_s3_miso = 13;
+        _cydr_s3_bl   = 45;
+        _cydr_s3_rst  = -1;
+    }
+
+    if (_cydr_s3_rst >= 0) {
+        gpio_reset_pin((gpio_num_t)_cydr_s3_rst);
+        gpio_set_direction((gpio_num_t)_cydr_s3_rst, GPIO_MODE_OUTPUT);
+        gpio_set_level((gpio_num_t)_cydr_s3_rst, 0);
+        delay(20);
+        gpio_set_level((gpio_num_t)_cydr_s3_rst, 1);
+        delay(120);
+    }
+#endif
+
     // DC is driven by the pre-transaction callback; configure it as output.
     // CS is owned by the SPI peripheral (hardware CS) once the bus is up.
     gpio_set_direction((gpio_num_t)CYDR_TFT_DC, GPIO_MODE_OUTPUT);
@@ -902,12 +984,9 @@ bool chipguy_CYD_resistive_display::begin(uint16_t rotation) {
         _auto.panel = _panel;
         _panel = (cydr_panel_t)_ovr.panel;
     }
-    // A capacitive touch chip on I2C, on any board.
+#if !CYDR_CHIP_S3
+    // A capacitive touch chip on I2C, on any classic board.
     uint8_t capAddr = 0;
-#if CYDR_CHIP_S3
-    bool s3Codec = false;
-    cydr_touch_chip_t cap = _cydr_s3ProbeI2c(&capAddr, &s3Codec);
-#else
     cydr_touch_chip_t cap = cydr_probeI2cTouch(&capAddr);
 #endif
     // The wiring comes from the backlight pins; only if they are

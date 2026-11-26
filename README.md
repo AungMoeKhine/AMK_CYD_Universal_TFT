@@ -1,7 +1,7 @@
 ﻿# AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.8.0-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.8.1-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD%20%2B%20S3%20RGB-2.4%22%20to%207.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
@@ -32,6 +32,13 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 
 ## 🚀 Key Features
 
+* ⚡ **Decoupled Architecture, Text Boundary Protection & VIEWE S3 Capacitive Touch Support [NEW in v1.8.1]**:
+  * **Ultra-Fast Decoupled Compilation**: Split into clean `.h` header and `.cpp` implementation, reducing compilation times and eliminating inline bloat.
+  * **Text Edge Memory Protection**: Safe boundary clipping in `_drawChar()` completely prevents memory corruption and crashes when rendering text exceeding screen limits.
+  * **VIEWE UEDX24320028E 2.8" ESP32-S3 Support**: Auto-detects VIEWE ST7789 IPS SPI panel and CHSC6540 capacitive touch controller on I2C (SDA 1, SCL 3).
+  * **Standard Arduino Touch Helper Aliases**: Direct support for `touch.touched()` and `touch.getXY(x, y)` for drop-in compatibility with standard Arduino and TFT_eSPI sketches.
+  * **Clean Categorized Examples**: Reorganized into `01_Basics` through `06_Raster_and_Platform_Specific`.
+
 * ⚡ **80 MHz SPI Stress Testing & Direct Unbuffered Raster Animation [NEW in v1.8.0]**:
   * **Certified 80 MHz Bus Testing (`tft.stressTest()`)**: Stress tests SPI transmission with random pixel noise, serial UART traffic, and LED PWM spikes, saving certified speed results to NVS flash (`tft.saveSpeedTest()`).
   * **Direct Unbuffered Raster Animation**: Overcomes classic ESP32 SRAM limitations (no full 150 KB framebuffer needed) by streaming 16-row DMA bounce buffers (7.5 KB - 10 KB) directly to the panel.
@@ -45,7 +52,7 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
   * **100% `TFT_eSPI` Macro Compatible**: Simply uncomment your configuration lines (`#define ILI9341_DRIVER`, `#define TFT_MOSI 11`, `#define TFT_SCLK 12`, `#define TFT_CS 10`, etc.).
   * **All AMK Power Features Remain Active**: Retains full fast 16-bit sprites, FreeFonts, touch calibration, and LDR moving-average auto-dimming (`#define TFT_LDR 4`).
   * **Zero-Breaking-Change Guarantee**: Omitting `AMK_User_Setup.h` keeps 100% automatic zero-config CYD detection working identically for classic CYD boards.
-  * Includes ready-to-run example in `examples/Custom_Hardware_Setup/`.
+  * Includes ready-to-run example in `examples/01_Basics/Custom_Hardware_Setup/`.
 
 * 💻 **Ultra-Fast Hardware Text Terminal Companion (`AMK_Terminal.h`) [NEW in v1.6.6]**:
   * Lightweight alternative to heavy GUI frameworks for logging, console output, and telemetry dashboards!
@@ -132,7 +139,7 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 * 🚀 **Zero-Boilerplate LVGL v8.x & v9.x Support**:
   * Built-in `AMK_CYD_LVGL` helper turns 70+ lines of confusing DMA buffer, display flushing, and touch driver setup into 1 single line (`lvgl.begin(display, touch);`).
   * Features hardware DMA double-buffering in ESP32 internal SRAM for silky-smooth 60 FPS graphics with zero tearing.
-  * Bundles a pre-configured `lv_conf.h` so sketches compile immediately out of the box with zero manual configuration.
+  * Bundles a pre-configured fallback (`src/AMK_lv_conf_default.h`) while automatically prioritizing your sketch's own `lv_conf.h` so projects compile immediately with zero conflicts.
 * 🎨 **Visual GUI Builder Support (SquareLine Studio & EEZ Studio)**:
   * Design screens visually with drag-and-drop widgets (speedometers, switches, charts, sliders) and export directly to your sketch.
   * Launch full interactive UIs in 1 line (`ui_init();`) without writing complex driver glue code.
@@ -209,6 +216,20 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 
 | Board Model | Screen Size | Resolution | Interface | Driver IC | Touch Controller | Architecture / IO Expander |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Waveshare ESP32-S3-Touch-LCD-7** | 7.0" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C SDA: 8, SCL: 9) |
+| **Waveshare ESP32-S3-Touch-LCD-5** | 5.0" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C SDA: 8, SCL: 9) |
+| **Waveshare ESP32-S3-Touch-LCD-4.3** | 4.3" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C SDA: 8, SCL: 9) |
+| **Sunton ESP32-8048S070 / S050 / S043** | 4.3" - 7.0" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | Direct GPIO (BL: GPIO 2, Touch: 19/20) * |
+
+### 3. ESP32-S3 SPI Displays (Resistive & Capacitive Touch) [NEW in v1.8.1]
+
+| Board Model | Screen Size | Resolution | Controller | Touch Bus | Backlight Pin | Audio / Extra |
+|:---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **VIEWE UEDX24320028E 2.8"** | 2.8" | 240x320 | ST7789 IPS | I2C CHSC6540 (SDA 1 / SCL 3) | GPIO 13 | Capacitive Touch (RST: 2, Addr: 0x2E) |
+| **ES3C28P 2.8"** (Black PCB) | 2.8" | 240x320 | ILI9341V IPS | I2C FT6336 (SDA 16 / SCL 15) | GPIO 45 | ES8311 I2S Audio Codec (0x18) |
+| **ES3N28P 2.8"** | 2.8" | 240x320 | ILI9341V IPS | No Touch | GPIO 45 | ES8311 I2S Audio Codec (0x18) |
+
+---|:---:|:---:|:---:|:---:|:---:|:---:|
 | **Waveshare ESP32-S3-Touch-LCD-7** | 7.0" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C SDA: 8, SCL: 9) |
 | **Waveshare ESP32-S3-Touch-LCD-5** | 5.0" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C SDA: 8, SCL: 9) |
 | **Waveshare ESP32-S3-Touch-LCD-4.3** | 4.3" | 800x480 | 16-bit Parallel RGB | ST7262 | GT911 (Capacitive) | CH422G (I2C SDA: 8, SCL: 9) |
@@ -469,7 +490,7 @@ void loop() {}
 3. In your sketch, `#include <AMK_CYD_LVGL.h>` and call `lvgl.begin(display, touch);`!
 
 > [!NOTE]
-> **Pre-Configured `lv_conf.h` Included**: Standard LVGL on Arduino typically requires manually finding and copying `lv_conf.h`. `AMK_CYD_Universal_TFT` bundles an optimized, ready-to-use `lv_conf.h` directly inside its `src/` directory, so your sketch compiles immediately out of the box with zero configuration!
+> **Non-Conflicting LVGL Configuration (`AMK_lv_conf_default.h`)**: `AMK_CYD_Universal_TFT` bundles a ready-to-use fallback configuration (`src/AMK_lv_conf_default.h`) while automatically prioritizing any custom `lv_conf.h` in your sketch or project folder via `__has_include`. Your sketches compile immediately out of the box without colliding with project-specific LVGL settings!
 
 ```cpp
 #include <Arduino.h>
@@ -574,7 +595,7 @@ void loop() {
 }
 ```
 > [!TIP]
-> Open **File** ➔ **Examples** ➔ **AMK_CYD_Universal_TFT** ➔ **`VisualGUI_QuickStart`** to try this full interactive smart room dashboard right now!
+> Open **File** ➔ **Examples** ➔ **AMK_CYD_Universal_TFT** ➔ **`05_LVGL_and_Visual_GUI`** ➔ **`VisualGUI_QuickStart`** to try this full interactive smart room dashboard right now!
 
 ---
 
@@ -616,9 +637,9 @@ Selected whenever FreeFonts are disabled via `tft.setFreeFont(NULL)`:
 
 ## 🎯 Touch Calibration & Noise Filters
 
-Resistive touch screens vary physically between individual manufacturing batches. This library includes a dedicated calibration app in `examples/TouchCalibration/TouchCalibration.ino`:
+Resistive touch screens vary physically between individual manufacturing batches. This library includes a dedicated calibration app in `examples/02_Touch_and_Calibration/TouchCalibration/TouchCalibration.ino`:
 
-1. Open **File** -> **Examples** -> **AMK_CYD_Universal_TFT** -> **TouchCalibration**.
+1. Open **File** -> **Examples** -> **AMK_CYD_Universal_TFT** -> **02_Touch_and_Calibration** -> **TouchCalibration**.
 2. Upload to your CYD board.
 3. Tap each of the 4 crosshairs using a stylus or precise tap.
 4. Adjust the **Pressure** and **Jump Filter** sliders to eliminate jitter.
@@ -679,7 +700,7 @@ The library automatically handles hardware inversion via `_needsInversion()`. If
 Call `tft.setBGR(true);` or `tft.setBGR(false);` to flip the subpixel order.
 
 ### Q: Touch coordinates are misaligned
-Upload and run the `TouchCalibration` example from this library, follow the crosshair prompts, and tap **SAVE**.
+Upload and run the `02_Touch_and_Calibration/TouchCalibration` example from this library, follow the crosshair prompts, and tap **SAVE**.
 
 ### Q: CYD Board boot loops with CORRUPT HEAP or PSRAM errors
 In your Arduino IDE menu, make sure **Tools** -> **PSRAM** is set to **Disabled**. Classic CYD boards do not have external PSRAM chips.
@@ -735,31 +756,65 @@ During SPI Flash write operations (`LittleFS`, `SPIFFS`, or EEPROM/NVS commits),
 
 ---
 
-## 📂 Included Examples
+## 📂 Included Examples (Organized by Learning Progression)
 
+Examples are grouped into six progressive folders inside `examples/` (and under **File → Examples → AMK_CYD_Universal_TFT** in the Arduino IDE) with redundant templates consolidated:
+
+### `01_Basics` — Hardware bring-up, auto-probing & custom pinouts
 | Example | Description |
 |:---|:---|
-| **`Custom_Hardware_Setup`** | **Universal Custom Hardware Setup via `AMK_User_Setup.h` [NEW in v1.7.0]**. Complete working showcase demonstrating custom pin mapping, external SPI display bring-up (ESP32 / ESP32-S3), LDR auto-dimming on custom ADC pins, memory telemetry, and touch test pad. |
-| **`Terminal_Console_Demo`** | **Ultra-Fast Hardware Text Terminal Companion [NEW in v1.6.6]**. Demonstrates 5 KB static RAM text terminal (`AMK_Terminal.h`), panel hardware vertical scrolling (`VSCRDEF`/`VSCRSADD`), UTF-8 typography, ANSI terminal colors, battery ADC telemetry, beep feedback, and character-cell touch detection (`pollTouch`). |
-| **`MP3Player`** | **Universal SD Card MP3 Player with LVGL UI & Audio Amp Control [NEW in v1.6.6]**. Full-featured audio player utilizing `ESP8266Audio`, 8-bit DAC continuous DMA streaming, PAM8302 amplifier pop-free enable/disable sequencing (`tft.enableAudio()`), 1-line SD mounting (`tft.initSD()`), and interactive LVGL 9 touch UI. |
-| **`Universal_AutoConfig`** | **Master Auto-Configuration Template [NEW in v1.6.0]**. Demonstrates 1-line `tft.autoSetup(3)`, adaptive multi-point calibration (`tft.autoCalibrate()`), responsive hardware telemetry cards, 7-color verification bar, and live touch tracking with RGB LED sync. |
-| **`CYD_Universal_AutoConfig`** | Reference implementation of the hardware auto-detection engine, illustrating explicit step-by-step probing mechanics, LDR auto-dimming filter math, and Active-LOW LED control. |
-| **`QuickStart`** | Minimal boilerplate template showcasing hardware auto-detection, status logging, and a simple touch dot drawing loop. |
-| **`BoardDetect`** | Standalone hardware detection and diagnostic tool. Probes board model, panel type, resolution, diagonal size, touch architecture, readback channel, and RGB LED pins. |
-| **`BasicTouchDemo`** | Full touch diagnostic canvas showing real-time `(X, Y)` touch coordinates, crosshair tracking, pressure values, and screen boundaries. |
-| **`ButtonDemo`** | Drop-in Bodmer `TFT_eSPI_Button` showcase. Features interactive touch buttons with press/release states, inverted click feedback, and hardware control (RGB LED & backlight toggle). |
-| **`GradientDemo`** | Showcase of linear color gradients (`fillRectVGradient`, `fillRectHGradient`) and alpha blending (`alphaBlend`). Features a sleek multi-card dashboard, frosted-glass HUD strip, theme palette cycling via touch, and onboard RGB LED sync. |
-| **`VisualGUI_QuickStart`** | Full drag-and-drop visual GUI template compatible with SquareLine Studio and EEZ Studio. Features an interactive temperature arc dial, live backlight PWM slider, onboard RGB LED toggle switch, and button callbacks. |
-| **`LVGL_QuickStart`** | 1-line LVGL initialization boilerplate showcasing automated DMA buffer allocation, display flushing, and touch pointer mapping with interactive buttons and sliders. |
-| **`FreeFontDemo`** | Comprehensive typography showcase featuring 5 interactive pages: font families comparison, proportional point sizes, giant vector scaling (`setTextSize(2)`), accurate text datum alignment anchors, and smooth dynamic off-screen sprite telemetry. |
-| **`TouchCalibration`** | Interactive multi-stage calibration tool. Features 4-point crosshair calibration, pressure thresholding, jump filters, a live test drawing canvas, and persistent storage in NVS Flash. |
-| **`SpriteDemo`** | High-performance 5-tab UI dashboard: <br>• **`METER`**: Smooth 124x124 analog power gauge sprite + backlight brightness drag slider.<br>• **`WAVE`**: Real-time 270x110 oscilloscope waveform buffer with speed and pause controls.<br>• **`RGB/LDR`**: Onboard active-low RGB LED color tester and LDR photoresistor ambient light level bar.<br>• **`DRAW`**: Interactive touch drawing canvas with 7-color square palette selection and a Clear button.<br>• **`LOGO`**: AMK Studio splash screen with auto-detected board model, panel name, resolution, and RAM telemetry. |
-| **`ImageDecoderDemo`** | **Universal 1-Line JPEG & PNG Hardware Decoder Showcase [NEW in v1.6.4/v1.6.5]**. Demonstrates high-speed 1-line image loading (`tft.drawJpgFile()`, `tft.drawPngFile()`, `drawJpg()`, `drawPng()`) from Flash arrays, LittleFS, SPIFFS, and SD cards with zero full-frame RAM buffering and heap-safe decoding. |
-| **`ESP32_S3_RGB_Touch_Demo`** | **Universal ESP32-S3 Parallel RGB & Capacitive Multi-Touch showcase (800x480)**. Features high-speed direct framebuffer rendering, 3 interactive `TFT_eSPI_Button` controls, live touch point tracking with coordinates, and counter. |
+| **`QuickStart`** | Minimal boilerplate template showcasing 1-line `tft.autoSetup(3)`, `tft.autoCalibrate()`, centered FreeFont status display, and a touch dot drawing loop. |
+| **`Universal_AutoConfig`** | **Consolidated Master Auto-Configuration Reference**. Combines 1-line `tft.autoSetup(3)` probing, responsive 6-card hardware telemetry grid, LDR ambient auto-dimming, 7-color MADCTL verification bar, and interactive touch canvas with RGB LED sync. |
+| **`BoardDetect`** | Standalone hardware detection and diagnostic tool. Probes board model, panel controller, resolution, diagonal size, touch architecture, readback channel, and RGB LED pins. |
+| **`Custom_Hardware_Setup`** | **Universal Custom Hardware Setup via `AMK_User_Setup.h`**. Complete working showcase demonstrating custom pin mapping, external SPI display bring-up (ESP32 / ESP32-S3), LDR auto-dimming on custom ADC pins, and touch test pad. |
 
+### `02_Touch_and_Calibration` — Resistive/capacitive touch & UI buttons
+| Example | Description |
+|:---|:---|
+| **`TouchCalibration`** | Interactive multi-stage resistive touch calibration tool with crosshair capture, pressure thresholding, jump filters, live test canvas, and persistent NVS Flash storage. |
+| **`BasicTouchDemo`** | Full touch diagnostic canvas displaying real-time `(X, Y)` touch coordinates, crosshair tracking, pressure values, and screen boundary checks. |
+| **`ButtonDemo`** | Drop-in Bodmer `TFT_eSPI_Button` showcase featuring interactive touch buttons with press/release states, inverted click feedback, and onboard RGB LED / backlight controls. |
+
+### `03_Graphics_and_Fonts` — Typography, gradients, sprites & image decoders
+| Example | Description |
+|:---|:---|
+| **`FreeFontDemo`** | Comprehensive 5-page typography showcase covering font families, proportional point sizes, giant vector scaling (`setTextSize(2)`), text datum anchors, and sprite telemetry. |
+| **`GradientDemo`** | Linear color gradients (`fillRectVGradient`, `fillRectHGradient`) and 16-bit RGB565 alpha blending (`alphaBlend`) with frosted-glass HUD cards, theme cycling, and RGB LED sync. |
+| **`SpriteDemo`** | High-performance 5-tab off-screen `TFT_eSprite` dashboard (`METER` analog gauge + brightness slider, `WAVE` oscilloscope buffer, `RGB/LDR` tester, `DRAW` canvas, and `LOGO` telemetry). |
+| **`ImageDecoderDemo`** | Universal 1-line JPEG & PNG hardware decoder showcase (`tft.drawJpgFile()`, `tft.drawPngFile()`, `drawJpg()`, `drawPng()`) from Flash PROGMEM, LittleFS, SPIFFS, and SD cards. |
+
+### `04_Peripherals_and_Terminal` — Hardware text console & DAC audio
+| Example | Description |
+|:---|:---|
+| **`Terminal_Console_Demo`** | Ultra-fast 5 KB static RAM hardware-scrolling console (`AMK_Terminal.h`) with panel vertical scrolling (`VSCRDEF`/`VSCRSADD`), UTF-8/ANSI colors, battery ADC telemetry, beep feedback, and character-cell touch buttons. |
+| **`MP3Player`** | SD card MP3 player utilizing `ESP8266Audio`, 8-bit DAC continuous DMA streaming, PAM8302 amplifier pop-free enable/disable sequencing (`tft.enableAudio()`), 1-line SD mounting (`tft.initSD()`), and an LVGL 9 touch UI. |
+
+### `05_LVGL_and_Visual_GUI` — LVGL v8/v9 & SquareLine / EEZ Studio workflows
+| Example | Description |
+|:---|:---|
+| **`LVGL_QuickStart`** | Minimal LVGL v8/v9 integration boilerplate using `AMK_CYD_LVGL` for automated DMA double-buffered display flushing and touch pointer mapping. |
+| **`VisualGUI_QuickStart`** | Drag-and-drop visual GUI template compatible with SquareLine Studio and EEZ Studio featuring a temperature arc dial, live backlight PWM slider, and RGB LED switch. |
+
+### `06_Raster_and_Platform_Specific` — 80 MHz stress tests, scanline raster & ESP32-S3 RGB
+| Example | Description |
+|:---|:---|
+| **`Raster_AMK_StressTest`** | Certified 80 MHz SPI bus stress test (`tft.stressTest()`) with NVS persistence, runtime clock switching, and tear-free scanline beam chasing. |
+| **`RasterBouncingBalls`** | Teaching demo for zero-framebuffer, tear-free raster animation synchronized to panel scanline `0x45` with interactive refresh-rate tuning. |
+| **`RasterFireRainSnow`** | Multi-scene unbuffered raster animation (campfire, sunset thunderstorm, snowfall) running dual-core DMA bounce buffers with zero full-screen framebuffer. |
+| **`ESP32_S3_RGB_Touch_Demo`** | Dedicated ESP32-S3 parallel RGB (800×480 ST7262) and GT911 capacitive multi-touch showcase with direct framebuffer rendering and `TFT_eSPI_Button` controls. |
 ---
 
 ## 📝 Release History & Changelog
+
+### v1.8.1 (Decoupled Compilation Architecture, LVGL Config Isolation & Reorganized Examples)
+* 🏗️ **Header/Source Decoupling (`AMK_CYD_Universal_TFT.h` & `AMK_CYD_Universal_TFT.cpp`)**:
+  * Moved the embedded `_amk_font5x7` PROGMEM glyph table and out-of-line `TFT_eSPI`, `TFT_eSprite`, and `TFT_eSPI_Button` method implementations from the header into `src/AMK_CYD_Universal_TFT.cpp`, accelerating incremental sketch builds and eliminating multi-translation-unit symbol bloat.
+* 🛡️ **Non-Conflicting LVGL Configuration (`AMK_lv_conf_default.h`)**:
+  * Renamed bundled `src/lv_conf.h` to `src/AMK_lv_conf_default.h` and updated `AMK_CYD_LVGL.h` with `__has_include` precedence so user-supplied `lv_conf.h` configurations always override the library default cleanly.
+* ✍️ **Edge-Clipped Text & Synchronous Image Blitting**:
+  * Updated `TFT_eSPI::_drawChar()` to detect screen-edge clipping and fall back to safe clipped fills, and ensured synchronous `waitFlush()` / `flushRegion()` row transfers in `pushImage()`.
+* 📂 **Reorganized & Deduplicated Example Progression (`01_Basics` – `06_Raster_and_Platform_Specific`)**:
+  * Grouped all 19 bundled sketches into 6 progressive Arduino IDE categories and consolidated duplicate `CYD_Universal_AutoConfig` into `01_Basics/Universal_AutoConfig`.
 
 ### v1.8.0 (80 MHz SPI Stress Testing, Unbuffered Direct Raster Animation & Scanline Sync Release)
 * ⚡ **80 MHz SPI Stress Testing & Dynamic Speed Calibration (`tft.stressTest()`)**:

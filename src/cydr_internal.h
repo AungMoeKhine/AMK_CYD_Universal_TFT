@@ -12,6 +12,9 @@
 // STOP.  Leaves both pins reset (inputs, off any peripheral).
 void _cydr_i2cBusRecover(int sda, int scl);
 
+// Read a GPIO with internal pull-up enabled to detect external pull-down resistors
+int _cydr_readWithPullup(int pin);
+
 #if CYDR_CHIP_S3
 // chipguy_CYD_board_ESP32S3.cpp -- THESE ONLY APPLY TO THE ESP32-S3.
 

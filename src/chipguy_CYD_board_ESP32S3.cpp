@@ -38,26 +38,27 @@
 #define CYDR_S3_FT6336    0x38
 #define CYDR_S3_ES8311    0x18
 
+// VIEWE UEDX24320028 I2C & Touch
+#define CYDR_VIEWE_I2C_SDA  1
+#define CYDR_VIEWE_I2C_SCL  3
+#define CYDR_VIEWE_CTP_RST  2   // CHSC6540 reset, active LOW
+#define CYDR_VIEWE_CHSC6540 0x2E
+
 static bool _cydr_s3Ack(uint8_t a) {
     Wire.beginTransmission(a);
     return Wire.endTransmission() == 0;
 }
 
 cydr_touch_chip_t _cydr_s3ProbeI2c(uint8_t *addr, bool *codec) {
-    // Hold the touch chip out of reset.  GPIO18 has no pull on the board, so
-    // after a reset of the S3 the FT6336's RST pin sees whatever its own
-    // pull gives it.
+    // 1. Probe ES3C28P / ES3N28P on SDA 16 / SCL 15
+    // Hold FT6336 touch chip out of reset on GPIO18.
     gpio_reset_pin((gpio_num_t)CYDR_S3_CTP_RST);
     gpio_set_level((gpio_num_t)CYDR_S3_CTP_RST, 1);
     gpio_set_direction((gpio_num_t)CYDR_S3_CTP_RST, GPIO_MODE_OUTPUT);
 
     bool touch = false, es = false;
-    // A soft restart can leave a chip mid-transfer holding SDA; recover the
-    // bus before each look (as on the classic capacitive boards).
-    for (int attempt = 0; attempt < 2 && !touch; attempt++) {
+    for (int attempt = 0; attempt < 2 && !touch && !es; attempt++) {
         if (attempt) {
-            // Not answering: reset it, and give it the ~200 ms the FT6336
-            // takes to start answering after reset.
             gpio_set_level((gpio_num_t)CYDR_S3_CTP_RST, 0);
             delay(10);
             gpio_set_level((gpio_num_t)CYDR_S3_CTP_RST, 1);
@@ -69,27 +70,69 @@ cydr_touch_chip_t _cydr_s3ProbeI2c(uint8_t *addr, bool *codec) {
             touch = _cydr_s3Ack(CYDR_S3_FT6336);
             es = es || _cydr_s3Ack(CYDR_S3_ES8311);
             Wire.end();
-            if (!touch && attempt) delay(20);
-        } while (!touch && attempt && millis() - t0 < 400);
+            if (!touch && !es && attempt) delay(20);
+        } while (!touch && !es && attempt && millis() - t0 < 300);
     }
     gpio_reset_pin((gpio_num_t)CYDR_S3_I2C_SDA);
     gpio_reset_pin((gpio_num_t)CYDR_S3_I2C_SCL);
-    if (codec) *codec = es;
-    if (addr) *addr = touch ? CYDR_S3_FT6336 : 0;
-    return touch ? CYDR_TOUCH_FT6336 : CYDR_TOUCH_NONE;
+
+    if (touch || es) {
+        if (codec) *codec = es;
+        if (addr) *addr = touch ? CYDR_S3_FT6336 : 0;
+        return touch ? CYDR_TOUCH_FT6336 : CYDR_TOUCH_NONE;
+    }
+
+    // 2. If ES3C28P didn't answer, probe VIEWE UEDX24320028 on SDA 1 / SCL 3
+    // Reset CHSC6540 capacitive touch controller on GPIO 2
+    gpio_reset_pin((gpio_num_t)CYDR_VIEWE_CTP_RST);
+    gpio_set_direction((gpio_num_t)CYDR_VIEWE_CTP_RST, GPIO_MODE_OUTPUT);
+    gpio_set_level((gpio_num_t)CYDR_VIEWE_CTP_RST, 0);
+    delay(10);
+    gpio_set_level((gpio_num_t)CYDR_VIEWE_CTP_RST, 1);
+    delay(30);
+
+    bool vieweTouch = false;
+    for (int attempt = 0; attempt < 2 && !vieweTouch; attempt++) {
+        _cydr_i2cBusRecover(CYDR_VIEWE_I2C_SDA, CYDR_VIEWE_I2C_SCL);
+        Wire.begin(CYDR_VIEWE_I2C_SDA, CYDR_VIEWE_I2C_SCL, 400000);
+        vieweTouch = _cydr_s3Ack(CYDR_VIEWE_CHSC6540);
+        Wire.end();
+        if (!vieweTouch && attempt == 0) delay(20);
+    }
+    gpio_reset_pin((gpio_num_t)CYDR_VIEWE_I2C_SDA);
+    gpio_reset_pin((gpio_num_t)CYDR_VIEWE_I2C_SCL);
+
+    if (vieweTouch) {
+        if (codec) *codec = false;
+        if (addr) *addr = CYDR_VIEWE_CHSC6540;
+        return CYDR_TOUCH_CHSC6540;
+    }
+
+    if (codec) *codec = false;
+    if (addr) *addr = 0;
+    return CYDR_TOUCH_NONE;
 }
 
 cydr_model_t _cydr_s3Model(cydr_panel_t panel, bool panelSdaOnly,
                            cydr_touch_chip_t cap, bool codec) {
+    if (cap == CYDR_TOUCH_CHSC6540 || panel == CYDR_PANEL_ST7789)
+        return CYDR_MODEL_VIEWE_28;
     if (panel == CYDR_PANEL_ILI9341 && !panelSdaOnly && codec)
         return cap == CYDR_TOUCH_FT6336 ? CYDR_MODEL_ES3C28P : CYDR_MODEL_ES3N28P;
+    if (cap == CYDR_TOUCH_FT6336)
+        return CYDR_MODEL_ES3C28P;
+    // Check VIEWE backlight pull-down on GPIO 13 vs ES3C28P on GPIO 45
+    if (_cydr_readWithPullup(13) == 0 && _cydr_readWithPullup(45) != 0)
+        return CYDR_MODEL_VIEWE_28;
+
     Serial.printf("cydr display: ESP32-S3 board with a %s panel%s, touch %s, "
                   "codec %s: an unseen board variant; model unknown\n",
                   panel == CYDR_PANEL_ILI9341 ? "ILI9341" :
                   panel == CYDR_PANEL_ST7789  ? "ST7789"  :
                   panel == CYDR_PANEL_ST7796  ? "ST7796"  : "unknown",
                   panelSdaOnly ? " (answering on SDA)" : "",
-                  cap == CYDR_TOUCH_FT6336 ? "FT6336 at 0x38" : "none at 0x38",
+                  cap == CYDR_TOUCH_FT6336 ? "FT6336 at 0x38" :
+                  cap == CYDR_TOUCH_CHSC6540 ? "CHSC6540 at 0x2E" : "none",
                   codec ? "ES8311 at 0x18" : "none at 0x18");
     return CYDR_MODEL_UNKNOWN;
 }
@@ -99,7 +142,7 @@ int8_t _cydr_s3RgbLedPin(cydr_model_t m) {
 }
 
 bool _cydr_s3PanelIsIps(cydr_model_t m) {
-    return m == CYDR_MODEL_ES3C28P || m == CYDR_MODEL_ES3N28P;
+    return m == CYDR_MODEL_ES3C28P || m == CYDR_MODEL_ES3N28P || m == CYDR_MODEL_VIEWE_28;
 }
 
 #endif  // CYDR_CHIP_S3

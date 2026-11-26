@@ -39,10 +39,13 @@
 // ES3C28P: no XPT2046.  The FT6336 is on Wire (I2C0), SDA 16 / SCL 15,
 // which the ES8311 codec shares -- a sketch's own Wire.begin(16, 15) for the
 // codec then finds the bus already started.  INT (17) isn't used: polled.
+// VIEWE:   CHSC6540 is on Wire (I2C0), SDA 1 / SCL 3.
 #define CYDR_TOUCH_IRQ   -1
 #define CYDR_TOUCH_CS    -1   // unused: the XPT2046 paths never run here
-#define CYDR_CAP_SDA     16
-#define CYDR_CAP_SCL     15
+static int8_t _cydr_s3_cap_sda = 16;
+static int8_t _cydr_s3_cap_scl = 15;
+#define CYDR_CAP_SDA     _cydr_s3_cap_sda
+#define CYDR_CAP_SCL     _cydr_s3_cap_scl
 #define CYDR_CAP_WIRE    Wire
 #else
 // Own-touch boards: the XPT2046 has its own pins, bit-banged.
@@ -199,7 +202,8 @@ bool chipguy_CYD_resistive_touch::_setup(cydr_board_t board, cydr_panel_t panel)
         _nativeH = panel == CYDR_PANEL_ST7796 ? 480 : 320;
         _mirrorX = false; _mirrorY = false;
         _nvsNs = cydr_activeModel() == CYDR_MODEL_2432S032C ? CYDR_TOUCH_NVS_NS_S032C :
-                 cydr_activeModel() == CYDR_MODEL_ES3C28P   ? CYDR_TOUCH_NVS_NS_ES3C28P
+                 cydr_activeModel() == CYDR_MODEL_ES3C28P   ? CYDR_TOUCH_NVS_NS_ES3C28P :
+                 cydr_activeModel() == CYDR_MODEL_VIEWE_28  ? "viewe28touch"
                                                             : CYDR_TOUCH_NVS_NS_CAP;
         if (_chip != CYDR_TOUCH_XPT2046) return true;     // begun before
         cydr_touch_chip_t want = cydr_activeTouchChip();
@@ -209,10 +213,27 @@ bool chipguy_CYD_resistive_touch::_setup(cydr_board_t board, cydr_panel_t panel)
             // at once: look again.
             if (cydr_probeI2cTouch(&addr) != want) addr = 0;
         }
+#if CYDR_CHIP_S3
+        if (cydr_activeModel() == CYDR_MODEL_VIEWE_28 || want == CYDR_TOUCH_CHSC6540) {
+            _cydr_s3_cap_sda = 1;
+            _cydr_s3_cap_scl = 3;
+            // Reset CHSC6540 on GPIO 2
+            gpio_reset_pin((gpio_num_t)2);
+            gpio_set_direction((gpio_num_t)2, GPIO_MODE_OUTPUT);
+            gpio_set_level((gpio_num_t)2, 0);
+            delay(10);
+            gpio_set_level((gpio_num_t)2, 1);
+            delay(30);
+        } else {
+            _cydr_s3_cap_sda = 16;
+            _cydr_s3_cap_scl = 15;
+        }
+#endif
         if (!addr) {
             Serial.printf("cydr touch: %s not answering on SDA %d / SCL %d\n",
                           want == CYDR_TOUCH_GT911 ? "GT911" :
-                          want == CYDR_TOUCH_FT6336 ? "FT6336" : "CST820",
+                          want == CYDR_TOUCH_FT6336 ? "FT6336" :
+                          want == CYDR_TOUCH_CHSC6540 ? "CHSC6540" : "CST820",
                           CYDR_CAP_SDA, CYDR_CAP_SCL);
             return false;
         }
@@ -695,19 +716,21 @@ bool chipguy_CYD_resistive_touch::_cst820Read(uint16_t &rawX, uint16_t &rawY) {
 
 const char *chipguy_CYD_resistive_touch::chipName() const {
     switch (_chip) {
-        case CYDR_TOUCH_GT911:  return "GT911";
-        case CYDR_TOUCH_CST820: return "CST820";
-        case CYDR_TOUCH_FT6336: return "FT6336";
-        case CYDR_TOUCH_NONE:   return "none";
-        default:                return "XPT2046";
+        case CYDR_TOUCH_GT911:    return "GT911";
+        case CYDR_TOUCH_CST820:   return "CST820";
+        case CYDR_TOUCH_FT6336:   return "FT6336";
+        case CYDR_TOUCH_CHSC6540: return "CHSC6540";
+        case CYDR_TOUCH_NONE:     return "none";
+        default:                  return "XPT2046";
     }
 }
 
 bool chipguy_CYD_resistive_touch::readRaw(uint16_t &rawX, uint16_t &rawY) {
     if (_chip == CYDR_TOUCH_GT911)  return _gt911Read(rawX, rawY);
-    // The FT6336's point registers (0x02 count, 0x03..0x06 X / Y) are laid out
+    // The FT6336 and CHSC6540 point registers (0x02 count, 0x03..0x06 X / Y) are laid out
     // as the CST820's.
-    if (_chip == CYDR_TOUCH_CST820 || _chip == CYDR_TOUCH_FT6336) return _cst820Read(rawX, rawY);
+    if (_chip == CYDR_TOUCH_CST820 || _chip == CYDR_TOUCH_FT6336 || _chip == CYDR_TOUCH_CHSC6540)
+        return _cst820Read(rawX, rawY);
     if (_chip == CYDR_TOUCH_NONE) return false;
     return _readRawSample(rawX, rawY);
 }

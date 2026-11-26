@@ -1,4 +1,4 @@
-﻿# AMK_CYD_Universal_TFT (v1.7.0) — Comprehensive Developer Guide & Technical Datasheet
+﻿# AMK_CYD_Universal_TFT (v1.8.1) — Comprehensive Developer Guide & Technical Datasheet
 **Author & Maintainer:** Aung Moe Khine (AMK)  
 **Target Hardware:** ESP32 Cheap Yellow Display (CYD) family (2.4" to 4.0") & ESP32-S3 Parallel RGB Displays (4.3" to 7.0")  
 **Frameworks:** Arduino IDE 1.8.x / 2.x, PlatformIO, Visual Studio Code  
@@ -38,6 +38,8 @@ The library automatically identifies and configures the following hardware archi
 | **ESP32-035 / 3248S035** | 3.5" | 320x480 | ST7796 | XPT2046 / GT911 (Shared HSPI) | GPIO 27 | R:4, G:17, B:16 | LDR: 34 | Hardwired (GND) |
 | **ESP32-32E 3.5" / 4.0"** | 3.5" / 4.0" | 320x480 | ST7796 | XPT2046 (Shared HSPI Bus) | GPIO 27 | R:22, G:16, B:17 | Bat: 34 | GPIO 4 (Active-LOW) |
 | **Guition JC2432W328** | 2.8" | 240x320 | ST7789 | CST820 (Capacitive) | GPIO 21 | R:4, G:16, B:17 | LDR: 34 | Hardwired (GND) |
+| **VIEWE UEDX24320028E** | 2.8" | 240x320 | ST7789 IPS | CHSC6540 (I2C SDA:1, SCL:3) | GPIO 13 | — | — | — |
+| **ES3C28P 2.8" (ESP32-S3)** | 2.8" | 240x320 | ILI9341V IPS | FT6336 (I2C SDA:16, SCL:15) | GPIO 45 | RGB: 42 | — | ES8311 Codec |
 
 ### B. ESP32-S3 Parallel RGB Boards (Sunton & Waveshare)
 
@@ -273,27 +275,40 @@ tft.flashLedSequence(50);          // Rapid RGB cycle diagnostic
 
 ---
 
-## 6. Complete Catalog of Bundled Examples (16 Ready-to-Run Sketches)
+## 6. Complete Catalog of Bundled Examples (19 Categorized Sketches)
 
-All sketches are located in the `examples/` directory:
+All sketches are organized by progressive complexity in the `examples/` directory:
 
-1. **`Terminal_Console_Demo`**: **Ultra-Fast Hardware Text Terminal Showcase [NEW in v1.6.6]**. Demonstrates 5 KB static RAM text terminal (`AMK_Terminal.h`), panel hardware vertical scrolling (`VSCRDEF`/`VSCRSADD`), UTF-8 typography, ANSI terminal colors, battery ADC telemetry, beep feedback, and character-cell touch detection (`pollTouch`).
-2. **`MP3Player`**: **Universal SD Card MP3 Player with LVGL UI & Audio Amp Control [NEW in v1.6.6]**. Full-featured audio player utilizing `ESP8266Audio`, 8-bit DAC continuous DMA streaming, PAM8302 amplifier pop-free enable/disable sequencing (`tft.enableAudio()`), 1-line SD mounting (`tft.initSD()`), and interactive LVGL 9 touch UI.
-3. **`Universal_AutoConfig`**: Master all-in-one template demonstrating 1-line autoSetup, adaptive calibration, responsive hardware telemetry cards, 7-color verification swatches, touch drawing canvas, and RGB LED sync.
-4. **`CYD_Universal_AutoConfig`**: Step-by-step diagnostic reference illustrating explicit probing mechanics, LDR filter math, and Active-LOW LED control.
-5. **`QuickStart`**: Minimal boilerplate template showcasing hardware auto-detection and a simple touch dot drawing loop.
-6. **`BoardDetect`**: Standalone diagnostic tool probing board model, panel type, resolution, diagonal size, touch architecture, readback channel, and RGB LED pins.
-7. **`BasicTouchDemo`**: Full touch diagnostic canvas showing real-time `(X, Y)` touch coordinates, crosshair tracking, pressure values, and screen boundaries.
-8. **`ButtonDemo`**: Drop-in Bodmer `TFT_eSPI_Button` showcase with press/release states, inverted click feedback, and hardware control toggles.
+### `01_Basics`
+1. **`QuickStart`**: Minimal boilerplate template showcasing hardware auto-detection (`tft.autoSetup(3)`), adaptive calibration (`tft.autoCalibrate()`), and a touch dot drawing loop.
+2. **`Universal_AutoConfig`**: Consolidated master auto-configuration reference demonstrating 1-line `autoSetup`, adaptive calibration, responsive 6-card hardware telemetry, 7-color verification swatches, touch drawing canvas, and RGB LED sync.
+3. **`BoardDetect`**: Standalone diagnostic tool probing board model, panel type, resolution, diagonal size, touch architecture, readback channel, and RGB LED pins.
+4. **`Custom_Hardware_Setup`**: Complete custom pinout and DIY board showcase driven via `AMK_User_Setup.h`.
+
+### `02_Touch_and_Calibration`
+5. **`TouchCalibration`**: Multi-stage calibration tool with crosshair capture, pressure thresholding, jump filters, live test canvas, and NVS persistence.
+6. **`BasicTouchDemo`**: Full touch diagnostic canvas showing real-time `(X, Y)` touch coordinates, crosshair tracking, pressure values, and screen boundaries.
+7. **`ButtonDemo`**: Drop-in Bodmer `TFT_eSPI_Button` showcase with press/release states, inverted click feedback, and hardware control toggles.
+
+### `03_Graphics_and_Fonts`
+8. **`FreeFontDemo`**: Typography showcase featuring proportional point sizes, vector scaling (`setTextSize(2)`), and text datum alignment anchors.
 9. **`GradientDemo`**: Showcase of linear color gradients and alpha blending with frosted-glass HUD strip, theme palette cycling, and RGB LED sync.
-10. **`ImageDecoderDemo`**: Universal 1-line JPEG & PNG hardware decoder showcase from LittleFS, SD, and Flash arrays with zero full-frame RAM buffering and heap-safe allocation.
-11. **`SpriteDemo`**: 5-tab high-performance UI dashboard (analog meter gauge sprite, real-time oscilloscope waveform buffer, RGB/LDR tester, touch drawing canvas, and AMK Studio splash screen).
-12. **`VisualGUI_QuickStart`**: Visual GUI template compatible with SquareLine Studio and EEZ Studio featuring temperature arc dials, backlight sliders, and button callbacks.
-13. **`LVGL_QuickStart`**: 1-line LVGL boilerplate showcasing automated DMA buffer allocation, display flushing, and touch pointer mapping.
-14. **`FreeFontDemo`**: Typography showcase featuring proportional point sizes, vector scaling (`setTextSize(2)`), and text datum alignment anchors.
-15. **`TouchCalibration`**: Multi-stage calibration tool with 4-point crosshair calibration, pressure thresholding, jump filters, live canvas, and NVS storage.
-16. **`ESP32_S3_RGB_Touch_Demo`**: Universal ESP32-S3 Parallel RGB & Capacitive Multi-Touch showcase (800x480) with high-speed framebuffer rendering and touch point tracking.
+10. **`SpriteDemo`**: 5-tab high-performance UI dashboard (analog meter gauge sprite, real-time oscilloscope waveform buffer, RGB/LDR tester, touch drawing canvas, and AMK Studio splash screen).
+11. **`ImageDecoderDemo`**: Universal 1-line JPEG & PNG hardware decoder showcase from LittleFS, SD, and Flash arrays with zero full-frame RAM buffering and heap-safe allocation.
 
+### `04_Peripherals_and_Terminal`
+12. **`Terminal_Console_Demo`**: Ultra-fast 5 KB static RAM hardware text terminal (`AMK_Terminal.h`) with panel vertical scrolling (`VSCRDEF`/`VSCRSADD`), UTF-8/ANSI colors, battery ADC telemetry, beep feedback, and character-cell touch detection.
+13. **`MP3Player`**: Universal SD Card MP3 Player utilizing `ESP8266Audio`, 8-bit DAC continuous DMA streaming, PAM8302 amplifier pop-free enable/disable sequencing (`tft.enableAudio()`), 1-line SD mounting (`tft.initSD()`), and interactive LVGL 9 touch UI.
+
+### `05_LVGL_and_Visual_GUI`
+14. **`LVGL_QuickStart`**: 1-line LVGL v8/v9 boilerplate showcasing automated DMA buffer allocation, display flushing, and touch pointer mapping.
+15. **`VisualGUI_QuickStart`**: Visual GUI template compatible with SquareLine Studio and EEZ Studio featuring temperature arc dials, backlight sliders, and button callbacks.
+
+### `06_Raster_and_Platform_Specific`
+16. **`Raster_AMK_StressTest`**: Certified 80 MHz SPI bus stress test (`tft.stressTest()`) with NVS persistence and scanline beam chasing.
+17. **`RasterBouncingBalls`**: Unbuffered tear-free raster animation synced to scanline `0x45` with interactive refresh-rate tuning.
+18. **`RasterFireRainSnow`**: Multi-scene dual-core unbuffered raster animation (campfire, thunderstorm, snowfall) with zero full-screen framebuffer.
+19. **`ESP32_S3_RGB_Touch_Demo`**: Universal ESP32-S3 Parallel RGB & Capacitive Multi-Touch showcase (800×480) with high-speed framebuffer rendering and touch point tracking.
 ---
 
 ## 7. Best Practices & Troubleshooting

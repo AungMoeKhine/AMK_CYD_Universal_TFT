@@ -37,7 +37,7 @@
 #elif __has_include(<AMK_TFT_User_Setup.h>)
   #include <AMK_TFT_User_Setup.h>
   #define AMK_CUSTOM_SETUP_ACTIVE 1
-#elif defined(AMK_CUSTOM_SETUP) || defined(AMK_CUSTOM_PINS)
+#elif defined(AMK_CUSTOM_SETUP) || defined(AMK_CUSTOM_PINS) || defined(BOARD_VIEWE_UEDX24320028E) || defined(BOARD_VIEWE_28) || defined(AMK_BOARD_VIEWE_28)
   #define AMK_CUSTOM_SETUP_ACTIVE 1
 #else
   #define AMK_CUSTOM_SETUP_ACTIVE 0
@@ -65,7 +65,7 @@
   using AMK_display     = chipguy_CYD_resistive_display;
   using AMK_touch       = chipguy_CYD_resistive_touch;
 
-#elif defined(CONFIG_IDF_TARGET_ESP32S3) || defined(BOARD_ESP32_S3_RGB) || defined(BOARD_ESP32_S3_TOUCH_7) || defined(ARDUINO_WAVESHARE_ESP32_S3_TOUCH_LCD_7)
+#elif defined(BOARD_ESP32_S3_RGB) || defined(BOARD_ESP32_S3_TOUCH_7) || defined(ARDUINO_WAVESHARE_ESP32_S3_TOUCH_LCD_7) || defined(BOARD_SUNTON_S3_8048S) || defined(AMK_USE_RGB_PANEL)
   #define AMK_BACKEND_ESP32_S3 1
   #include "AMK_S3_RGB_Board.h"
   #include "chipguy_S3_RGB_display.h"
@@ -113,6 +113,22 @@
   };
   inline bool cydr_loadOverrides(cydr_overrides_t &) { return false; }
   inline void cydr_saveOverrides(const cydr_overrides_t &) {}
+
+  enum cydr_speed_result_t : uint8_t {
+      CYDR_SPEED_UNTESTED = 0,
+      CYDR_SPEED_PASSED,
+      CYDR_SPEED_FAILED,
+  };
+  struct cydr_speed_test_t {
+      uint8_t version = 1;
+      cydr_speed_result_t result = CYDR_SPEED_UNTESTED;
+      uint32_t hz = 0;
+      uint16_t windows = 0;
+      uint16_t bad = 0;
+  };
+  struct cydr_refresh_choice_t {
+      int8_t step = 0;
+  };
   inline void cydr_clearOverrides() {}
   inline bool cydr_anyOverride(const cydr_overrides_t &) { return false; }
 
@@ -139,6 +155,7 @@
 #endif
 
 #include "Fonts/GFXFF/gfxfont.h"
+#include "AMK_Responsive_UI.h"
 #include "Free_Fonts.h"
 
 // ─── Color constants (RGB565) ────────────────────────────────────────────────
@@ -317,6 +334,14 @@ class TFT_eSprite;
 //  TFT_eSPI  -  Base display class
 // ═══════════════════════════════════════════════════════════════════════════════
 class TFT_eSPI : public Print {
+public:
+    // ── Universal Responsive UI & Font Helpers ──
+    AMK_FontProfile getFontProfile() { return AMK_getFontProfile(width(), height()); }
+    AMK_UiTier      getUiTier()      { return getFontProfile().tier; }
+    bool            isCompact()      { return getFontProfile().isCompact; }
+    bool            isMid()          { return getFontProfile().isMid; }
+    bool            isLarge()        { return getFontProfile().isLarge; }
+
 protected:
     uint8_t  _textDatum   = TL_DATUM;
     uint8_t  _textSize    = 1;
@@ -1119,13 +1144,17 @@ public:
             pinMode(pin, OUTPUT);
             if (enable) {
                 // Anti-pop sequence: Park DAC at mid-scale (128) first, let coupling cap settle, then pull LOW
+#if defined(SOC_DAC_SUPPORTED) && SOC_DAC_SUPPORTED
                 dacWrite(26, 128);
+#endif
                 delay(15);
                 digitalWrite(pin, LOW);  // Active-LOW enable turns ON PAM8302
             } else {
                 // Shutdown sequence: De-assert amp HIGH before unparking DAC
                 digitalWrite(pin, HIGH); // Shutdown PAM8302
+#if defined(SOC_DAC_SUPPORTED) && SOC_DAC_SUPPORTED
                 dacWrite(26, 128);
+#endif
             }
         }
     }
@@ -1146,7 +1175,9 @@ public:
         ledcWriteTone(0, 0);
         ledcDetachPin(26);
 #endif
+#if defined(SOC_DAC_SUPPORTED) && SOC_DAC_SUPPORTED
         dacWrite(26, 128);
+#endif
         enableAudio(false); // Shutdown amp when idle to eliminate hiss/clicks
     }
 #else

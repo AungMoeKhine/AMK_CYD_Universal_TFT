@@ -264,6 +264,8 @@ enum cydr_model_t : uint8_t {
                              //   backlight 45, FT6336G capacitive touch (I2C
                              //   SDA 16 / SCL 15), ES8311 codec on the same bus
     CYDR_MODEL_ES3N28P,      // ES3N28P: the ES3C28P without touch
+    CYDR_MODEL_VIEWE_28,     // VIEWE UEDX24320028 2.8" (ESP32-S3): ST7789/GC9307 IPS,
+                             //   backlight 13, CHSC6540 capacitive touch (I2C SDA 1 / SCL 3)
     CYDR_MODEL_COUNT         // not a model: one past the last
 };
 // Values are stored by number in the model override, so new models go at the end.
@@ -272,7 +274,7 @@ enum cydr_model_t : uint8_t {
 // 2 the ESP32-S3.  A model can only be named (overridden) on its own chip.
 static inline uint8_t cydr_modelChip(cydr_model_t m) {
     return m == CYDR_MODEL_NM_CYD_C5 ? 1 :
-           m == CYDR_MODEL_ES3C28P || m == CYDR_MODEL_ES3N28P ? 2 : 0;
+           (m == CYDR_MODEL_ES3C28P || m == CYDR_MODEL_ES3N28P || m == CYDR_MODEL_VIEWE_28) ? 2 : 0;
 }
 #define CYDR_THIS_CHIP (CYDR_CHIP_C5 ? 1 : CYDR_CHIP_S3 ? 2 : 0)
 
@@ -284,6 +286,7 @@ enum cydr_touch_chip_t : uint8_t {
     CYDR_TOUCH_GT911,        // 0x5D or 0x14 (ESP32-2432S032C, ESP32-3248S035C)
     CYDR_TOUCH_CST820,       // 0x15, Hynitron CST816 / CST820 family (2432S024C, JC2432W328)
     CYDR_TOUCH_FT6336,       // 0x38, FocalTech FT6336G (ES3C28P)
+    CYDR_TOUCH_CHSC6540,     // 0x2E, CHSC6540 capacitive touch (VIEWE UEDX24320028)
     CYDR_TOUCH_NONE,         // no touch fitted (ES3N28P); read() never reports a press
 };
 

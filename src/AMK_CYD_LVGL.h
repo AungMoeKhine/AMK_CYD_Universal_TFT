@@ -14,6 +14,17 @@
 #include <Arduino.h>
 #include "AMK_CYD_Universal_TFT.h"
 
+// Prioritize user-provided lv_conf.h; fall back to bundled AMK_lv_conf_default.h
+#if !defined(LV_CONF_H) && !defined(LV_CONF_SKIP)
+  #if __has_include("lv_conf.h")
+    #include "lv_conf.h"
+  #elif __has_include(<lv_conf.h>)
+    #include <lv_conf.h>
+  #elif __has_include("AMK_lv_conf_default.h")
+    #include "AMK_lv_conf_default.h"
+  #endif
+#endif
+
 #if __has_include(<lvgl.h>)
 #include <lvgl.h>
 #define AMK_CYD_HAS_LVGL 1

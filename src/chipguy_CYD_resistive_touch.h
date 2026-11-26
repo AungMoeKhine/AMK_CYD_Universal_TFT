@@ -182,6 +182,12 @@ public:
     // with x,y mapped to screen pixels for the active rotation.
     bool read(uint16_t &x, uint16_t &y);
 
+    // Convenient alias wrappers for TFT_eSPI & standard Arduino sketch compatibility
+    bool touched() { uint16_t dummyX, dummyY; return read(dummyX, dummyY); }
+    bool getXY(uint16_t &x, uint16_t &y) { return read(x, y); }
+    bool getXY(int16_t &x, int16_t &y) { uint16_t ux, uy; bool ret = read(ux, uy); x = (int16_t)ux; y = (int16_t)uy; return ret; }
+    bool getXY(int &x, int &y) { uint16_t ux, uy; bool ret = read(ux, uy); x = (int)ux; y = (int)uy; return ret; }
+
     // Read median-filtered raw 12-bit ADC values (no calibration/rotation
     // applied).  Returns true if pressed.  Useful for gathering calibration
     // numbers.

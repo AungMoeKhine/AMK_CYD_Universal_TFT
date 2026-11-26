@@ -1,12 +1,12 @@
 /***************************************************************************************
- * CYD_Universal_AutoConfig.ino - Master Auto-Configuration Template for ESP32 CYD
+ * Universal_AutoConfig.ino - Master Auto-Configuration Template for ESP32 CYD
  * 
  * Author: Aung Moe Khine (AMK)
- * Library: AMK_CYD_Universal_TFT (v1.6.6)
+ * Library: AMK_CYD_Universal_TFT (v1.8.1)
+ * Category: 01_Basics (Consolidated Master Auto-Configuration Reference)
  * Repository: https://github.com/aungmoekhine/AMK_CYD_Universal_TFT
  * 
- * This master reference sketch automatically discovers and configures 100% of your
- * ESP32 Cheap Yellow Display (CYD) hardware features entirely at runtime.
+ * Demonstrates the native 1-line autoSetup() engine introduced in v1.6.0!
  * 
  * ZERO HARDCODED PINS. ZERO MANUAL SWITCHES. PURE DYNAMIC PROBING.
  * 
@@ -24,8 +24,6 @@
 #include <AMK_CYD_Universal_TFT.h>
 
 #define BOOT_PIN 0          // Onboard BOOT button for clearing touch canvas
-#define LDR_PIN  34         // Standard CYD analog input for LDR or Battery Divider
-#define NUM_LDR_READINGS 10 // Moving average sample size
 
 // =====================================================================================
 // 1. GLOBAL DRIVER OBJECTS
@@ -33,21 +31,6 @@
 AMK_display display;
 AMK_touch   touch;
 TFT_eSPI    tft;
-
-// =====================================================================================
-// 2. DYNAMIC HARDWARE STATE (POPULATED AT RUNTIME BY AUTO-DETECTION)
-// =====================================================================================
-struct UniversalHardwareState {
-  uint8_t blPin;             // Auto-detected Backlight pin (21 or 27)
-  int8_t  redLedPin;         // Auto-detected Red LED pin (4 or 22, -1 if none)
-  int8_t  greenLedPin;       // Auto-detected Green LED pin (16 or 17, -1 if none)
-  int8_t  blueLedPin;        // Auto-detected Blue LED pin (17 or 16, -1 if none)
-  int8_t  gpio34Role;        // 0 = LDR light sensor, 1 = Battery monitor, -1 = Unknown
-  bool    hasLdr;            // True if GPIO 34 operates as ambient light sensor
-  bool    autoBrightness;    // Backlight auto-dimming active
-  int     activeBrightness;  // Current PWM level (20 - 255)
-  int     lastLdrRaw;        // Latest raw analog reading
-} hwState = {0, -1, -1, -1, -1, false, true, 160, 0};
 
 // Palette Definition (RGB565)
 const uint16_t C_BG        = 0x0000; // Pitch Black
@@ -79,152 +62,15 @@ static uint16_t lastTouchX = 0, lastTouchY = 0;
 static bool wasTouching = false;
 
 // =====================================================================================
-// 3. REUSABLE RGB LED CONTROLLERS (ACTIVE-LOW LOGIC)
-// =====================================================================================
-void setRgbLed(bool redOn, bool greenOn, bool blueOn) {
-  if (hwState.redLedPin >= 0)   digitalWrite(hwState.redLedPin,   redOn   ? LOW : HIGH);
-  if (hwState.greenLedPin >= 0) digitalWrite(hwState.greenLedPin, greenOn ? LOW : HIGH);
-  if (hwState.blueLedPin >= 0)  digitalWrite(hwState.blueLedPin,  blueOn  ? LOW : HIGH);
-}
-
-void turnLedOff() {
-  setRgbLed(false, false, false);
-}
-
-void flashLedSequence() {
-  setRgbLed(true, false, false); delay(60);
-  setRgbLed(false, true, false); delay(60);
-  setRgbLed(false, false, true); delay(60);
-  turnLedOff();
-}
-
-// =====================================================================================
-// 4. USER-GLOBAL-RULE COMPLIANT HARDCORE LDR AUTO-DIMMING ENGINE
-// =====================================================================================
-void adjustBrightness() {
-  if (hwState.blPin == 0 || !hwState.hasLdr || !hwState.autoBrightness) return;
-
-  static int readings[NUM_LDR_READINGS] = {0};
-  static int readIndex = 0;
-  static long total = 0;
-  static unsigned long lastReadTime = 0;
-  static int lastAppliedBrightness = -1;
-
-  if (millis() - lastReadTime > 80) {
-    lastReadTime = millis();
-    int rawAdc = analogRead(LDR_PIN);
-    hwState.lastLdrRaw = rawAdc;
-
-    total = total - readings[readIndex];
-    readings[readIndex] = rawAdc;
-    total = total + rawAdc;
-    readIndex = (readIndex + 1) % NUM_LDR_READINGS;
-
-    long average = total / NUM_LDR_READINGS;
-    // FROZEN HARDCORE STANDARD: map(average, 0, 1024, 255, 20)
-    int target = constrain(map(average, 0, 1024, 255, 20), 20, 255);
-
-    // 4-unit hysteresis deadband prevents light sensor flicker & PWM thrashing
-    if (abs(target - lastAppliedBrightness) >= 4) {
-      lastAppliedBrightness = target;
-      hwState.activeBrightness = target;
-      analogWrite(hwState.blPin, target);
-    }
-  }
-}
-
-// =====================================================================================
-// 5. MASTER HARDWARE AUTO-SETUP ROUTINE (DROP-IN FOR ANY SKETCH)
-// =====================================================================================
-void setupUniversalHardware(uint8_t rotation = 3) {
-  tft.init();
-  tft.setRotation(rotation);
-  tft.setSwapBytes(true);
-  tft.fillScreen(C_BG);
-
-  hwState.blPin = display.backlightPin();
-  pinMode(hwState.blPin, OUTPUT);
-  analogWriteResolution(hwState.blPin, 8);
-  hwState.activeBrightness = 160;
-  analogWrite(hwState.blPin, hwState.activeBrightness);
-
-  hwState.gpio34Role = display.gpio34IsBattery();
-  hwState.hasLdr = tft.hasLdrSensor();
-
-  if (hwState.hasLdr) {
-    pinMode(LDR_PIN, INPUT);
-    for (int i = 0; i < NUM_LDR_READINGS; i++) {
-      adjustBrightness();
-      delay(10);
-    }
-  } else {
-    hwState.activeBrightness = tft.getProperNonLdrBacklight();
-    analogWrite(hwState.blPin, hwState.activeBrightness);
-  }
-
-  hwState.redLedPin   = display.redLedPin();
-  hwState.greenLedPin = display.greenLedPin();
-  hwState.blueLedPin  = display.blueLedPin();
-
-  if (hwState.redLedPin >= 0)   { pinMode(hwState.redLedPin, OUTPUT);   digitalWrite(hwState.redLedPin, HIGH); }
-  if (hwState.greenLedPin >= 0) { pinMode(hwState.greenLedPin, OUTPUT); digitalWrite(hwState.greenLedPin, HIGH); }
-  if (hwState.blueLedPin >= 0)  { pinMode(hwState.blueLedPin, OUTPUT);  digitalWrite(hwState.blueLedPin, HIGH); }
-
-  flashLedSequence();
-
-  touch.begin(display);
-  touch.setRotation(rotation);
-  if (!touch.capacitive()) {
-    touch.loadCalibration();
-    touch.loadFilters();
-  }
-}
-
-// =====================================================================================
-// 6. SERIAL HARDWARE AUDIT REPORTER
-// =====================================================================================
-void printHardwareReport() {
-  Serial.println("\n=================================================================");
-  Serial.println("         AMK_CYD_Universal_TFT Universal Hardware Report         ");
-  Serial.println("=================================================================");
-  Serial.printf(" Board Model:         %s\n", display.modelName());
-  Serial.printf(" Display Panel:       %s\n", display.panelName());
-  Serial.printf(" Native Resolution:   %d x %d pixels\n", display.nativeWidth(), display.nativeHeight());
-  Serial.printf(" Active Resolution:   %d x %d pixels (Rotation %d)\n", tft.width(), tft.height(), tft.getRotation());
-  if (display.diagonalTenths() > 0) {
-    Serial.printf(" Screen Diagonal:     %.1f inches\n", display.diagonalTenths() / 10.0f);
-  }
-  Serial.printf(" Backlight Pin:       GPIO %u (Auto-detected by library)\n", hwState.blPin);
-  Serial.printf(" Backlight Control:   8-bit PWM (Active Level: %d / 255)\n", hwState.activeBrightness);
-  Serial.printf(" Color Order:         %s (Factory MADCTL verified)\n", display.isBGR() ? "BGR" : "RGB");
-  Serial.printf(" 16-bit Byte Swap:    %s\n", tft.getSwapBytes() ? "Enabled (setSwapBytes: true)" : "Disabled");
-  Serial.printf(" Touch Controller:    %s (%s)\n", touch.chipName(), touch.capacitive() ? "Capacitive I2C" : "Resistive SPI");
-#if !defined(AMK_BACKEND_ESP32_S3)
-  Serial.printf(" Bus Architecture:    %s\n", display.board() == CYDR_BOARD_OWN_TOUCH ? "Dedicated Touch Bus" : "Shared Display SPI Bus");
-  Serial.printf(" Display Readback:    %s\n", tft.getReadbackName());
-  Serial.printf(" RGB LED Pins:        Red: %d | Green: %d | Blue: %d (Active-LOW)\n", hwState.redLedPin, hwState.greenLedPin, hwState.blueLedPin);
-  if (hwState.gpio34Role == 1) {
-    Serial.println(" GPIO 34 Role:        Battery Voltage Divider (LDR auto-dim disabled)");
-  } else if (hwState.hasLdr) {
-    Serial.println(" GPIO 34 Role:        Light Dependent Resistor (LDR Auto-Dimming Active)");
-  } else {
-    Serial.printf(" GPIO 34 Role:        No LDR Detected -> Auto-Set Backlight (%d / 255, ~%d%%)\n",
-                  hwState.activeBrightness, (int)(hwState.activeBrightness * 100 / 255));
-  }
-  const char* hint = display.powerOffHint();
-  if (hint) Serial.printf(" Power-Off Hint:      %s\n", hint);
-#endif
-  Serial.println("=================================================================\n");
-}
-
-// =====================================================================================
-// 7. RESPONSIVE DASHBOARD & SMALL-CAPITAL FONT GUI RENDERER
+// 2. RESPONSIVE DASHBOARD & SMALL-CAPITAL FONT GUI RENDERER
 // =====================================================================================
 void drawCardValue(int x, int y, int w, int h, const char* val, uint16_t valColor) {
+  // Clear value area with safe margins inside card to eliminate any ghost pixels
   int valAreaY = y + 11;
   int valAreaH = h - 13;
   tft.fillRect(x + 2, valAreaY, w - 4, valAreaH, C_CARD);
 
+  // Small Capital Font Engine: Use Font 2 (crisp technical small-cap font, 16px high)
   tft.setFreeFont(nullptr);
   tft.setTextFont(2);
   tft.setTextSize(1);
@@ -233,6 +79,7 @@ void drawCardValue(int x, int y, int w, int h, const char* val, uint16_t valColo
 
   int centerY = y + (h / 2) + 5;
 
+  // Graceful fallback to Font 1 if an unusually long text exceeds card boundaries
   if (tft.textWidth(val) <= w - 8) {
     tft.drawString(val, x + (w / 2), centerY);
   } else {
@@ -245,6 +92,7 @@ void drawInfoCard(int x, int y, int w, int h, const char* label, const char* val
   tft.fillRoundRect(x, y, w, h, 4, C_CARD);
   tft.drawRoundRect(x, y, w, h, 4, C_BORDER);
 
+  // Top Subtitle Header in clean small capital font (Font 1)
   tft.setFreeFont(nullptr);
   tft.setTextFont(1);
   tft.setTextSize(1);
@@ -252,6 +100,7 @@ void drawInfoCard(int x, int y, int w, int h, const char* label, const char* val
   tft.setTextDatum(TC_DATUM);
   tft.drawString(label, x + (w / 2), y + 2);
 
+  // Center Value in Small Capital Technical Font (Font 2)
   drawCardValue(x, y, w, h, val, valColor);
 }
 
@@ -261,6 +110,7 @@ void renderDashboard() {
 
   tft.fillScreen(C_BG);
 
+  // Responsive Dimensions (Tier S: 320x240, Tier M: 480x320)
   int headerH = (sh >= 320) ? 30 : 24;
   int gap     = 4;
   int colW    = (sw - (gap * 3)) / 2;
@@ -270,8 +120,9 @@ void renderDashboard() {
   tft.fillRect(0, 0, sw, headerH, C_HEADER);
   tft.drawFastHLine(0, headerH - 1, sw, C_CYAN);
 
-  const char* badgeText = hwState.hasLdr ? "LDR ACTIVE" : "NO LDR (180)";
-  uint16_t badgeColor = hwState.hasLdr ? C_GREEN : C_YELLOW;
+  // Status Badge Pill on Right (Font 1 Small Caps)
+  const char* badgeText = tft.hasLdrSensor() ? "LDR ACTIVE" : "NO LDR (180)";
+  uint16_t badgeColor = tft.hasLdrSensor() ? C_GREEN : C_YELLOW;
 
   int pillW = (sw >= 480) ? 96 : 84;
   int pillH = headerH - 6;
@@ -286,6 +137,7 @@ void renderDashboard() {
   tft.setTextSize(1);
   tft.drawString(badgeText, pillX + (pillW / 2), pillY + (pillH / 2));
 
+  // Title on Left in Clean Small Capital Font (Font 2)
   tft.setTextColor(C_CYAN, C_HEADER);
   tft.setTextDatum(ML_DATUM);
   tft.setFreeFont(nullptr);
@@ -294,7 +146,8 @@ void renderDashboard() {
   const char* title = (sw >= 480) ? "AMK MASTER AUTOCONFIG" : "AMK AUTOCONFIG";
   tft.drawString(title, 8, headerH / 2);
 
-  const char* model = display.modelName();
+  // Model string formatting
+  const char* model = tft.modelName();
   char modelShort[32];
   if (strncmp(model, "ESP32-", 6) == 0) {
     strncpy(modelShort, model + 6, sizeof(modelShort));
@@ -309,7 +162,7 @@ void renderDashboard() {
 
   // Row 1: Model & Display Panel
   drawInfoCard(x0, y0, colW, cardH, "BOARD MODEL", modelShort, C_WHITE);
-  drawInfoCard(x1, y0, colW, cardH, "DISPLAY PANEL", display.panelName(), C_GREEN);
+  drawInfoCard(x1, y0, colW, cardH, "DISPLAY PANEL", tft.panelName(), C_GREEN);
 
   // Row 2: Touch Engine & Backlight Pin
   int y1 = y0 + cardH + gap;
@@ -318,7 +171,7 @@ void renderDashboard() {
   drawInfoCard(x0, y1, colW, cardH, "TOUCH ENGINE", touchBuf, C_CYAN);
 
   char blBuf[32];
-  snprintf(blBuf, sizeof(blBuf), "GPIO %u (PWM)", hwState.blPin);
+  snprintf(blBuf, sizeof(blBuf), "GPIO %u (PWM)", tft.backlightPin());
   drawInfoCard(x1, y1, colW, cardH, "BACKLIGHT PIN", blBuf, C_YELLOW);
 
   // Row 3: Hardcore LDR Dim (Live Dynamic Hero Card) & RGB LED Pins
@@ -329,8 +182,8 @@ void renderDashboard() {
   ldrCardH = cardH;
 
   char ldrBuf[32];
-  if (hwState.hasLdr) {
-    snprintf(ldrBuf, sizeof(ldrBuf), "%d -> %u PWM", hwState.lastLdrRaw, hwState.activeBrightness);
+  if (tft.hasLdrSensor()) {
+    snprintf(ldrBuf, sizeof(ldrBuf), "%d -> %u PWM", tft.getLdrRaw(), tft.getActiveBacklight());
     drawInfoCard(ldrCardX, ldrCardY, ldrCardW, ldrCardH, "LDR AMBIENT DIM", ldrBuf, C_GREEN);
   } else {
     snprintf(ldrBuf, sizeof(ldrBuf), "NO LDR (180 PWM)");
@@ -338,8 +191,8 @@ void renderDashboard() {
   }
 
   char ledBuf[32];
-  if (hwState.redLedPin >= 0) {
-    snprintf(ledBuf, sizeof(ledBuf), "R: %d  G: %d  B: %d", hwState.redLedPin, hwState.greenLedPin, hwState.blueLedPin);
+  if (tft.redLedPin() >= 0) {
+    snprintf(ledBuf, sizeof(ledBuf), "R: %d  G: %d  B: %d", tft.redLedPin(), tft.greenLedPin(), tft.blueLedPin());
   } else {
     snprintf(ledBuf, sizeof(ledBuf), "N/A (S3 RGB)");
   }
@@ -397,15 +250,17 @@ void updateCoordTelemetry(uint16_t x, uint16_t y, uint16_t z) {
 }
 
 void updateLdrTelemetry() {
-  int curLdr = hwState.hasLdr ? hwState.lastLdrRaw : -1;
-  int curPwm = hwState.activeBrightness;
+  int curLdr = tft.hasLdrSensor() ? tft.getLdrRaw() : -1;
+  int curPwm = tft.getActiveBacklight();
 
   if (curLdr != lastLdrVal || curPwm != lastAppliedPwm) {
     lastLdrVal = curLdr;
     lastAppliedPwm = curPwm;
 
+    // Redraw LDR Card Value in Clean Small Capital Font (Font 2)
+    // Fits cleanly inside 154px card width with zero ghosting or spillover
     char cardBuf[32];
-    if (hwState.hasLdr) {
+    if (tft.hasLdrSensor()) {
       snprintf(cardBuf, sizeof(cardBuf), "%d -> %u PWM", curLdr, curPwm);
       drawCardValue(ldrCardX, ldrCardY, ldrCardW, ldrCardH, cardBuf, C_GREEN);
     } else {
@@ -416,7 +271,7 @@ void updateLdrTelemetry() {
 }
 
 // =====================================================================================
-// 8. SETUP & LOOP
+// 3. SETUP & LOOP (USING NATIVE V1.6.0+ LIBRARY API)
 // =====================================================================================
 void setup() {
   Serial.begin(115200);
@@ -424,8 +279,20 @@ void setup() {
 
   pinMode(BOOT_PIN, INPUT_PULLUP);
 
-  setupUniversalHardware(3);
-  printHardwareReport();
+  // 1-LINE UNIVERSAL HARDWARE AUTO-SETUP
+  // Automatically detects and configures:
+  //   - Panel type & native resolution
+  //   - Rotation & 16-bit byte swap (setSwapBytes: true)
+  //   - Backlight PWM on auto-detected pin (GPIO 21 vs 27)
+  //   - Hardcore LDR auto-dimming filter priming on GPIO 34
+  //   - Non-LDR boards auto-fallback to comfortable 180 PWM
+  //   - Active-LOW RGB LED pins (R, G, B) & startup flash
+  //   - Touch controller (XPT2046 vs GT911/CST820) & calibration
+  //   - Serial hardware audit report
+  tft.autoSetup(3, true);
+  tft.autoCalibrate();
+
+  // Render Graphical Dashboard
   renderDashboard();
 }
 
@@ -433,7 +300,7 @@ void loop() {
   // -----------------------------------------------------------------------------------
   // 1. FIRST-LINE EXECUTION: Hardcore LDR Ambient Dimming (Strict Hardware Standard)
   // -----------------------------------------------------------------------------------
-  adjustBrightness();
+  tft.adjustBrightness();
 
   // -----------------------------------------------------------------------------------
   // 2. REAL-TIME HARDWARE TELEMETRY UPDATE (ZERO GHOSTING)
@@ -452,13 +319,13 @@ void loop() {
     if (digitalRead(BOOT_PIN) == LOW) {
       tft.fillRect(0, canvasY, tft.width(), tft.height() - canvasY, C_BG);
       updateCoordTelemetry(0, 0, 0);
-      turnLedOff();
+      tft.turnLedOff();
       while (digitalRead(BOOT_PIN) == LOW) delay(10);
     }
   }
 
   // -----------------------------------------------------------------------------------
-  // 4. INTERACTIVE TOUCH TRACKING & DYNAMIC RGB LED ILLUMINATION
+  // 4. INTERACTIVE TOUCH TRACKING & NATIVE RGB LED ILLUMINATION
   // -----------------------------------------------------------------------------------
   uint16_t tx = 0, ty = 0;
   if (tft.getTouch(&tx, &ty)) {
@@ -477,11 +344,12 @@ void loop() {
       wasTouching = true;
     }
 
-    setRgbLed(false, true, true);
+    // Drive RGB LED interactively with touch (Neon Cyan: Green + Blue active)
+    tft.setRgbLed(false, true, true);
   } else {
     if (wasTouching) {
       wasTouching = false;
-      turnLedOff();
+      tft.turnLedOff(); // Turn off RGB LED when screen is released
     }
   }
 
