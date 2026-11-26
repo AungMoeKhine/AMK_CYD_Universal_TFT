@@ -123,13 +123,11 @@
 // compile time, the options that make a bad build for the chip.  ARDUINO_FQBN
 // is defined by the core from the build's FQBN; option matching is exact: the
 // name=value must be followed by a comma or the end of the string.
+static constexpr bool cydr_fqbnMatchHere(const char *a, const char *b) {
+    return !*b ? (*a == ',' || *a == 0) : (*a == *b && cydr_fqbnMatchHere(a + 1, b + 1));
+}
 static constexpr bool cydr_fqbnHasOption(const char *s, const char *opt) {
-    for (; *s; ++s) {
-        const char *a = s; const char *b = opt;
-        while (*a && *b && *a == *b) { ++a; ++b; }
-        if (!*b && (*a == ',' || *a == 0)) return true;
-    }
-    return false;
+    return *s ? (cydr_fqbnMatchHere(s, opt) || cydr_fqbnHasOption(s + 1, opt)) : false;
 }
 #if CYDR_CHIP_C5
 // The NM-CYD-C5's module (ESP32-C5-WROOM-1-N16R8) has 8 MB of PSRAM on pins

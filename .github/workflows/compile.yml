@@ -76,7 +76,7 @@ jobs:
 
       - name: Compile ESP32-S3 Examples
         run: |
-          FQBN_S3="esp32:esp32:esp32s3:PSRAM=opi,FlashSize=16M,PartitionScheme=huge_app"
+          FQBN_S3="esp32:esp32:esp32s3:CDCOnBoot=cdc,PSRAM=opi,FlashSize=16M,PartitionScheme=huge_app"
           for sketch in \
             examples/01_Basics/QuickStart \
             examples/06_Raster_and_Platform_Specific/ESP32_S3_RGB_Touch_Demo
