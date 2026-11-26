@@ -115,8 +115,8 @@
 // The classic ESP32 boards: run-time detection by backlight pull-downs and GPIO4.
 #define CYDR_CHIP_CLASSIC (!CYDR_CHIP_C5 && !CYDR_CHIP_S3)
 
-#if !defined(AMK_CUSTOM_SETUP_ACTIVE) || (AMK_CUSTOM_SETUP_ACTIVE == 0)
 #if !defined(BOARD_ESP32_S3_RGB) && !defined(BOARD_ESP32_S3_TOUCH_7) && !defined(ARDUINO_WAVESHARE_ESP32_S3_TOUCH_LCD_7)
+#if !defined(AMK_CUSTOM_SETUP_ACTIVE) || (AMK_CUSTOM_SETUP_ACTIVE == 0)
 
 // ── Board-option guard ─────────────────────────────────────────────────────
 // The Arduino IDE does not persist board options reliably.  So refuse, at
