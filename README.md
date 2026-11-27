@@ -1,7 +1,7 @@
 ﻿# AMK_CYD_Universal_TFT
 
 [![Arduino Compatible](https://img.shields.io/badge/Arduino-Compatible-00979C.svg?style=flat-square&logo=arduino)](https://www.arduino.cc/)
-[![Release](https://img.shields.io/badge/Release-v1.8.1-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
+[![Release](https://img.shields.io/badge/Release-v1.8.2-blue.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT/releases)
 [![ESP32 Core](https://img.shields.io/badge/ESP32-v2.x%20%7C%20v3.x-E7352C.svg?style=flat-square&logo=espressif)](https://github.com/espressif/arduino-esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Hardware](https://img.shields.io/badge/CYD%20%2B%20S3%20RGB-2.4%22%20to%207.0%22-brightgreen.svg?style=flat-square)](https://github.com/aungmoekhine/AMK_CYD_Universal_TFT)
@@ -31,6 +31,11 @@ The popular **ESP32 Cheap Yellow Display (CYD)** boards are incredible value for
 ---
 
 ## 🚀 Key Features
+
+* 🛡️ **ESP-IDF 6.0 (Arduino Core 4.0.0) Compatibility, Custom Setup Fix & CI Verification [NEW in v1.8.2]**:
+  * **ESP-IDF 6.0 / Arduino Core 4.0.0 Ready**: Updated `chipguy_S3_RGB_display` for ESP-IDF 6.0 (`in_color_format` / `out_color_format`, `dma_burst_size`, and explicit `gpio_num_t` pin casts).
+  * **Custom Hardware Setup Guard Fix**: Fixed `AMK_CUSTOM_SETUP_ACTIVE` preprocessor guard in `chipguy_CYD_resistive_display.h` so `AMK_User_Setup.h` custom pinouts compile cleanly.
+  * **S3 RGB Demo & Automated CI**: Added `#define AMK_USE_RGB_PANEL` to `ESP32_S3_RGB_Touch_Demo.ino` and added a GitHub Actions workflow (`.github/workflows/compile.yml`) verifying all 19 CYD and ESP32-S3 examples.
 
 * ⚡ **Decoupled Architecture, Text Boundary Protection & VIEWE S3 Capacitive Touch Support [NEW in v1.8.1]**:
   * **Ultra-Fast Decoupled Compilation**: Split into clean `.h` header and `.cpp` implementation, reducing compilation times and eliminating inline bloat.
@@ -805,6 +810,15 @@ Examples are grouped into six progressive folders inside `examples/` (and under 
 ---
 
 ## 📝 Release History & Changelog
+
+### v1.8.2 (ESP-IDF 6.0 / Arduino Core 4.0.0 Compatibility, Custom Setup Fix & CI Verification)
+* ⚡ **ESP-IDF 6.0 (Arduino ESP32 Core 4.0.0) RGB Display Compatibility (`chipguy_S3_RGB_display.cpp`)**:
+  * Updated `esp_lcd_rgb_panel_config_t` initialization with `#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)` to use `.in_color_format = LCD_COLOR_FMT_RGB565`, `.out_color_format = LCD_COLOR_FMT_RGB565`, and `.dma_burst_size = 64`, plus explicit `gpio_num_t` / `GPIO_NUM_NC` casts for all RGB panel pins.
+* 🛠️ **Custom Hardware Setup Preprocessor Fix (`chipguy_CYD_resistive_display.h`)**:
+  * Fixed `#if !defined(AMK_CUSTOM_SETUP_ACTIVE)` guard placement so `CYDR_TFT_SPI_HOST`, `CYDR_TFT_NATIVE_WIDTH`, `CYDR_TFT_NATIVE_HEIGHT`, `cydr_normalize_rotation()`, and `cydr_panel_t` remain available when `AMK_User_Setup.h` is active.
+* 🖥️ **ESP32-S3 RGB Demo & Automated CI Workflow**:
+  * Added `#define AMK_USE_RGB_PANEL` to `ESP32_S3_RGB_Touch_Demo.ino` for out-of-the-box compiling on generic `ESP32S3 Dev Module` targets.
+  * Added `.github/workflows/compile.yml` to automatically compile-check all 19 ESP32 CYD and ESP32-S3 examples on GitHub Actions.
 
 ### v1.8.1 (Decoupled Compilation Architecture, LVGL Config Isolation & Reorganized Examples)
 * 🏗️ **Header/Source Decoupling (`AMK_CYD_Universal_TFT.h` & `AMK_CYD_Universal_TFT.cpp`)**:

@@ -1,4 +1,4 @@
-﻿# AMK_CYD_Universal_TFT (v1.8.1) — Comprehensive Developer Guide & Technical Datasheet
+﻿# AMK_CYD_Universal_TFT (v1.8.2) — Comprehensive Developer Guide & Technical Datasheet
 **Author & Maintainer:** Aung Moe Khine (AMK)  
 **Target Hardware:** ESP32 Cheap Yellow Display (CYD) family (2.4" to 4.0") & ESP32-S3 Parallel RGB Displays (4.3" to 7.0")  
 **Frameworks:** Arduino IDE 1.8.x / 2.x, PlatformIO, Visual Studio Code  
